@@ -1,20 +1,80 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createStackNavigator } from "@react-navigation/stack";
+import { StatusBar } from "expo-status-bar";
 
-export default function App() {
+import LoginScreen from "./Screens/LoginScreen";
+import RegisterScreen from "./Screens/RegisterScreen";
+import MainTabNavigator from "./Screens/MainTabNavigator";
+import PlaceDetailsScreen from "./Screens/PlaceDetailsScreen";
+import DistrictDetailsScreen from "./Screens/DistrictDetailsScreen";
+import { AuthProvider, useAuth } from "./AuthContext";
+
+import { StyleSheet, View } from "react-native";
+import LottieView from "lottie-react-native";
+
+const Stack = createStackNavigator();
+
+function Root() {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
+    <NavigationContainer>
       <StatusBar style="auto" />
-    </View>
+      {true ? (
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+          <Stack.Screen
+            name="PlaceDetails"
+            component={PlaceDetailsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="DistrictDetails"
+            component={DistrictDetailsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+        </Stack.Navigator>
+      ) : (
+        <Stack.Navigator
+          initialRouteName="Login"
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Stack.Screen name="Login">
+            {(props) => (
+              <LoginScreen {...props} onLogin={() => setIsLoggedIn(true)} />
+            )}
+          </Stack.Screen>
+          <Stack.Screen name="Register">
+            {(props) => (
+              <RegisterScreen
+                {...props}
+                onRegister={() => setIsLoggedIn(true)}
+              />
+            )}
+          </Stack.Screen>
+        </Stack.Navigator>
+      )}
+    </NavigationContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default function App() {
+  return (
+    <AuthProvider>
+      <Root />
+    </AuthProvider>
+  );
+}
