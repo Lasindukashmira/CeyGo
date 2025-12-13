@@ -144,6 +144,45 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
               <Text style={styles.descriptionText}>{place.description}</Text>
             </View>
 
+            {/* Opening Hours */}
+            {place.opening_hours && Object.keys(place.opening_hours).length > 0 && (
+              <View style={styles.openingHoursSection}>
+                <View style={styles.openingHoursHeader}>
+                  <MaterialCommunityIcons name="clock-outline" size={22} color="#2c5aa0" />
+                  <Text style={styles.sectionTitle}>Opening Hours</Text>
+                </View>
+                <View style={styles.openingHoursContainer}>
+                  {Object.entries(place.opening_hours).map(([day, hours], index) => {
+                    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+                    const isToday = day === today;
+                    return (
+                      <View
+                        key={index}
+                        style={[
+                          styles.openingHoursRow,
+                          isToday && styles.todayRow
+                        ]}
+                      >
+                        <View style={styles.dayContainer}>
+                          <Text style={[styles.dayText, isToday && styles.todayText]}>
+                            {day}
+                          </Text>
+                          {isToday && (
+                            <View style={styles.todayBadge}>
+                              <Text style={styles.todayBadgeText}>Today</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={[styles.hoursText, isToday && styles.todayText]}>
+                          {hours}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
             {/* Stats */}
             <Stats place={place} />
             {/* Map Section */}
@@ -271,6 +310,67 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
     lineHeight: 24,
+  },
+  openingHoursSection: {
+    marginBottom: 25,
+  },
+  openingHoursHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+    gap: 8,
+  },
+  openingHoursContainer: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  openingHoursRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e9ecef",
+  },
+  todayRow: {
+    backgroundColor: "#e3f2fd",
+    marginHorizontal: -15,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderBottomWidth: 0,
+  },
+  dayContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  dayText: {
+    fontSize: 15,
+    color: "#666",
+    fontWeight: "500",
+  },
+  hoursText: {
+    fontSize: 15,
+    color: "#444",
+    fontWeight: "500",
+  },
+  todayText: {
+    color: "#2c5aa0",
+    fontWeight: "600",
+  },
+  todayBadge: {
+    backgroundColor: "#2c5aa0",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  todayBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
   },
 
   actionButtonsSection: {

@@ -94,7 +94,7 @@ const MainTabNavigator = () => {
         options={{
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons
-              name={focused ? "headset" : "headset-vr"}
+              name="virtual-reality"
               size={25}
               color={focused ? "#2c5aa0" : "#0008"}
             />
