@@ -1,258 +1,345 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   Image,
   StyleSheet,
-} from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+  Dimensions,
+} from "react-native";
+import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+
+const { width } = Dimensions.get("window");
 
 const PlaceCard = ({ item, onPress, getCategoryIcon, rank, navigation }) => {
   const [isFavorited, setIsFavorited] = useState(false);
 
   const handleFavoritePress = (event) => {
-    event.stopPropagation(); // Prevent card press when heart is pressed
+    event.stopPropagation();
     setIsFavorited(!isFavorited);
-    console.log(`${isFavorited ? 'Removed from' : 'Added to'} favorites:`, item.name);
+    console.log(
+      `${isFavorited ? "Removed from" : "Added to"} favorites:`,
+      item.name
+    );
   };
 
   const handleCardPress = () => {
     if (navigation) {
-      navigation.navigate('PlaceDetails', { place: item });
+      navigation.navigate("PlaceDetails", { place: item });
     } else if (onPress) {
       onPress(item);
     }
   };
 
+  // Get rank medal emoji
+  const getRankDisplay = () => {
+    if (rank === 1) return { emoji: "🥇", bg: "#FFD700" };
+    if (rank === 2) return { emoji: "🥈", bg: "#C0C0C0" };
+    if (rank === 3) return { emoji: "🥉", bg: "#CD7F32" };
+    return { emoji: `#${rank}`, bg: "#2c5aa0" };
+  };
+
+  const rankInfo = getRankDisplay();
+
   return (
-    <TouchableOpacity style={styles.placeCard} onPress={handleCardPress}>
-      {/* Place Image */}
-      <View style={styles.placeImageContainer}>
-        <Image 
-          source={{ uri: item.image_urls[0] }} 
-          style={styles.placeImage} 
-          defaultSource={require('../assets/cpic/History.jpg')}
+    <TouchableOpacity
+      style={styles.card}
+      onPress={handleCardPress}
+      activeOpacity={0.92}
+    >
+      {/* Image Container */}
+      <View style={styles.imageContainer}>
+        <Image
+          source={{ uri: item.image_urls[0] }}
+          style={styles.image}
+          defaultSource={require("../assets/cpic/History.jpg")}
         />
-        <View style={styles.placeRankBadge}>
-          <Text style={styles.placeRankText}>#{rank}</Text>
+
+        {/* Dark gradient overlay at bottom */}
+        <View style={styles.imageGradient} />
+
+        {/* Rank Badge */}
+        <View style={[styles.rankBadge, { backgroundColor: rankInfo.bg }]}>
+          {rank <= 3 ? (
+            <Text style={styles.rankEmoji}>{rankInfo.emoji}</Text>
+          ) : (
+            <Text style={styles.rankText}>{rankInfo.emoji}</Text>
+          )}
         </View>
-        <View style={styles.placeRatingContainer}>
-          <Text style={styles.placeRatingText}>⭐ {item.rating}</Text>
+
+        {/* Rating Pill */}
+        <View style={styles.ratingPill}>
+          <MaterialIcons name="star" size={14} color="#FFD700" />
+          <Text style={styles.ratingText}>{item.rating}</Text>
         </View>
-        
+
         {/* Favorite Button */}
-        <TouchableOpacity style={styles.favoriteButton} onPress={handleFavoritePress}>
-          <MaterialIcons 
-            name={isFavorited ? "favorite" : "favorite-border"} 
-            size={24} 
-            color={isFavorited ? "#e74c3c" : "#fff"} 
+        <TouchableOpacity
+          style={[
+            styles.favoriteButton,
+            isFavorited && styles.favoriteButtonActive,
+          ]}
+          onPress={handleFavoritePress}
+        >
+          <MaterialIcons
+            name={isFavorited ? "favorite" : "favorite-border"}
+            size={20}
+            color={isFavorited ? "#e53935" : "#fff"}
           />
         </TouchableOpacity>
-        
-        {/* Category Icons Overlay */}
-        <View style={styles.placeCategoriesOverlay}>
-          {item.category.slice(0, 3).map((categoryName, index) => (
-            <View key={index} style={styles.placeCategoryBadge}>
+
+        {/* Category Tags on Image */}
+        <View style={styles.categoryTags}>
+          {item.category.slice(0, 2).map((categoryName, index) => (
+            <View key={index} style={styles.categoryTag}>
               {getCategoryIcon(categoryName)}
             </View>
           ))}
-          {item.category.length > 3 && (
-            <View style={styles.placeCategoryBadge}>
-              <Text style={styles.placeCategoryMoreText}>+{item.category.length - 3}</Text>
+          {item.category.length > 2 && (
+            <View style={styles.categoryTagMore}>
+              <Text style={styles.categoryMoreText}>
+                +{item.category.length - 2}
+              </Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* Place Info */}
-      <View style={styles.placeInfo}>
-        <Text style={styles.placeName} numberOfLines={2}>{item.name}</Text>
-        
+      {/* Content */}
+      <View style={styles.content}>
+        {/* Title */}
+        <Text style={styles.title} numberOfLines={1}>
+          {item.name}
+        </Text>
+
         {/* Location */}
-        <View style={styles.placeMetaInfo}>
-          <View style={styles.placeLocationContainer}>
-            <MaterialIcons name="location-on" size={14} color="#666" style={styles.placeLocationIcon} />
-            <Text style={styles.placeLocationText} numberOfLines={1}>
-              {item.geolocation.district}, {item.geolocation.province}
+        <View style={styles.locationRow}>
+          <MaterialIcons name="location-on" size={14} color="#2c5aa0" />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {item.geolocation.district}, {item.geolocation.province}
+          </Text>
+        </View>
+
+        {/* Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons name="eye" size={14} color="#888" />
+            <Text style={styles.statText}>
+              {(item.popularity_score * 1000).toFixed(0)}
+            </Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons name="comment-text" size={14} color="#888" />
+            <Text style={styles.statText}>
+              {(item.popularity_score * 150).toFixed(0)}
+            </Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons name="heart" size={14} color="#888" />
+            <Text style={styles.statText}>
+              {(item.popularity_score * 200).toFixed(0)}
             </Text>
           </View>
         </View>
 
-        {/* Reviews and Popularity */}
-        <View style={styles.placeStats}>
-          <View style={styles.placeStatItem}>
-            <MaterialIcons name="visibility" size={14} color="#666" style={styles.placeStatIcon} />
-            <Text style={styles.placeStatText}>
-              {(item.popularity_score * 1000).toFixed(0)} views
-            </Text>
-          </View>
-          <View style={styles.placeStatItem}>
-            <MaterialIcons name="comment" size={14} color="#666" style={styles.placeStatIcon} />
-            <Text style={styles.placeStatText}>
-              {(item.popularity_score * 150).toFixed(0)} reviews
-            </Text>
-          </View>
-        </View>
-
-        {/* Description Preview */}
-        <Text style={styles.placeDescription} numberOfLines={2}>
+        {/* Description */}
+        <Text style={styles.description} numberOfLines={2}>
           {item.description}
         </Text>
+
+        {/* View Details Button */}
+        <TouchableOpacity style={styles.viewButton} onPress={handleCardPress}>
+          <Text style={styles.viewButtonText}>View Details</Text>
+          <MaterialIcons name="arrow-forward" size={16} color="#fff" />
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  placeCard: {
+  card: {
     width: 280,
-    marginRight: 15,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    marginRight: 16,
+    borderRadius: 24,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 12,
+    elevation: 8,
+    overflow: "hidden",
   },
-  placeImageContainer: {
-    position: 'relative',
-    height: 180,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
+  imageContainer: {
+    height: 170,
+    position: "relative",
   },
-  placeCategoriesOverlay: {
-    position: 'absolute',
+  image: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  imageGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: "transparent",
+  },
+  rankBadge: {
+    position: "absolute",
+    top: 14,
+    left: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    minWidth: 36,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  rankEmoji: {
+    fontSize: 16,
+  },
+  rankText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
+  ratingPill: {
+    position: "absolute",
+    top: 14,
+    right: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 4,
+  },
+  ratingText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
+  favoriteButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  favoriteButtonActive: {
+    backgroundColor: "rgba(255,255,255,0.95)",
+  },
+  categoryTags: {
+    position: "absolute",
     bottom: 12,
-    left: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    left: 14,
+    flexDirection: "row",
+    gap: 6,
   },
-  placeCategoryBadge: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 12,
-    marginRight: 6,
-    borderWidth: 0.5,
-    borderColor: 'rgba(44, 90, 160, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
+  categoryTag: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 2,
   },
-  placeImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+  categoryTagMore: {
+    paddingHorizontal: 10,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(44,90,160,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  placeRankBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: '#2c5aa0',
-    borderRadius: 15,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    minWidth: 30,
-    alignItems: 'center',
+  categoryMoreText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
   },
-  placeRankText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  placeRatingContainer: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    borderRadius: 15,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  placeRatingText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  favoriteButton: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeInfo: {
+  content: {
     padding: 16,
   },
-  placeName: {
+  title: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-    lineHeight: 22,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+    marginBottom: 6,
   },
-  placeMetaInfo: {
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
+    gap: 4,
   },
-  placeCategoryMoreText: {
-    fontSize: 9,
-    color: '#2c5aa0',
-    fontWeight: 'bold',
-  },
-  placeLocationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  placeLocationIcon: {
-    marginRight: 6,
-  },
-  placeLocationText: {
-    fontSize: 12,
-    color: '#666',
+  locationText: {
+    fontSize: 13,
+    color: "#666",
     flex: 1,
   },
-  placeStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f7fa",
+    borderRadius: 12,
+    padding: 10,
     marginBottom: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
   },
-  placeStatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  statItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
   },
-  placeStatIcon: {
-    marginRight: 4,
+  statDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: "#ddd",
   },
-  placeStatText: {
-    fontSize: 11,
-    color: '#666',
-    fontWeight: '500',
+  statText: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "600",
   },
-  placeDescription: {
+  description: {
     fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
+    color: "#888",
+    lineHeight: 19,
+    marginBottom: 14,
+  },
+  viewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2c5aa0",
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 6,
+  },
+  viewButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 

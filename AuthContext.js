@@ -7,7 +7,7 @@ import {
   createUserWithEmailAndPassword,
 } from "firebase/auth";
 import { auth, db } from "./firebaseConfig";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 const AuthContext = createContext();
 
@@ -16,9 +16,20 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        setUser("firebaseUser");
+        // Fetch user data from Firestore
+        try {
+          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (userDoc.exists()) {
+            setUser({ ...firebaseUser, ...userDoc.data() });
+          } else {
+            setUser(firebaseUser); // Fallback if no doc exists yet
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          setUser(firebaseUser);
+        }
       } else {
         setUser(null);
       }

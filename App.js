@@ -23,7 +23,7 @@ function Root() {
   return (
     <NavigationContainer>
       <StatusBar style="auto" />
-      {true ? (
+      {user ? (
         <Stack.Navigator
           screenOptions={{
             headerShown: false,

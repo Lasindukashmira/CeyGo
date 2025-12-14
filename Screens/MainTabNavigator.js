@@ -1,5 +1,5 @@
 import React from "react";
-import { Text } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import HomeScreen from "./HomeScreen";
@@ -7,7 +7,7 @@ import ExploreScreen from "./ExploreScreen";
 import TourismPlanScreen from "./TourismPlanScreen";
 import FavouritesScreen from "./FavouritesScreen";
 import VRScreen from "./VRScreen";
-import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const Tab = createBottomTabNavigator();
 
@@ -18,31 +18,40 @@ const MainTabNavigator = () => {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: "#fff",
-          borderTopWidth: 1,
-          borderTopColor: "#e0e0e0",
-          paddingBottom: 5,
-          paddingTop: 5,
-          height: 70,
+          borderTopWidth: 0,
+          height: 75,
+          paddingBottom: 12,
+          paddingTop: 10,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 15,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: "600",
+          marginTop: 2,
         },
         tabBarActiveTintColor: "#2c5aa0",
-        tabBarInactiveTintColor: "#666",
+        tabBarInactiveTintColor: "#999",
+        tabBarIconStyle: {
+          marginBottom: -2,
+        },
       }}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "home" : "home-outline"}
-              size={25}
-              color={focused ? "#2c5aa0" : "#0008"}
-            />
-            // <Text style={{ fontSize: size, color }}>🏠</Text>
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
+              <MaterialCommunityIcons
+                name={focused ? "home" : "home-outline"}
+                size={24}
+                color={focused ? "#2c5aa0" : "#999"}
+              />
+            </View>
           ),
         }}
       />
@@ -50,27 +59,29 @@ const MainTabNavigator = () => {
         name="Explore"
         component={ExploreScreen}
         options={{
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "map-marker" : "map-marker-outline"}
-              size={25}
-              color={focused ? "#2c5aa0" : "#0008"}
-            />
-            // <Text style={{ fontSize: size, color }}>🗺️</Text>
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
+              <MaterialCommunityIcons
+                name={focused ? "compass" : "compass-outline"}
+                size={24}
+                color={focused ? "#2c5aa0" : "#999"}
+              />
+            </View>
           ),
         }}
       />
       <Tab.Screen
-        name="AI Planner"
+        name="AI Plan"
         component={TourismPlanScreen}
         options={{
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "robot" : "robot-outline"}
-              size={25}
-              color={focused ? "#2c5aa0" : "#0008"}
-            />
-            // <Text style={{ fontSize: size, color }}>🤖</Text>
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
+              <MaterialCommunityIcons
+                name={focused ? "robot" : "robot-outline"}
+                size={24}
+                color={focused ? "#2c5aa0" : "#999"}
+              />
+            </View>
           ),
         }}
       />
@@ -78,13 +89,14 @@ const MainTabNavigator = () => {
         name="Favourites"
         component={FavouritesScreen}
         options={{
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? "heart" : "heart-outline"}
-              size={25}
-              color={focused ? "#2c5aa0" : "#0008"}
-            />
-            // <Text style={{ fontSize: size, color }}>❤️</Text>
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
+              <MaterialCommunityIcons
+                name={focused ? "heart" : "heart-outline"}
+                size={24}
+                color={focused ? "#2c5aa0" : "#999"}
+              />
+            </View>
           ),
         }}
       />
@@ -92,18 +104,32 @@ const MainTabNavigator = () => {
         name="VR"
         component={VRScreen}
         options={{
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name="virtual-reality"
-              size={25}
-              color={focused ? "#2c5aa0" : "#0008"}
-            />
-            // <Text style={{ fontSize: size, color }}>🥽</Text>
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
+              <MaterialCommunityIcons
+                name="virtual-reality"
+                size={24}
+                color={focused ? "#2c5aa0" : "#999"}
+              />
+            </View>
           ),
         }}
       />
     </Tab.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  iconWrapper: {
+    width: 42,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  iconWrapperActive: {
+    backgroundColor: "#e3f2fd",
+  },
+});
 
 export default MainTabNavigator;

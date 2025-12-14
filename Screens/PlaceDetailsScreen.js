@@ -21,7 +21,6 @@ import ToursSection from "../Components/placeDetails/ToursSection";
 import NearbyAttractionsSection from "../Components/NearbyAttractions";
 import ReviewsSection from "../Components/ReviewSection";
 import ImageGallery from "../Components/placeDetails/ImageGallery";
-import Stats from "../Components/placeDetails/Stats";
 import MapSection from "../Components/placeDetails/MapSection";
 import WeatherSection from "../Components/placeDetails/WeatherSection";
 import WeatherModal from "../Components/placeDetails/WeatherModal";
@@ -108,40 +107,92 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
           <ImageGallery placeImages={placeImages} navigation={navigation} />
           {/* Content */}
           <View style={styles.content}>
-            {/* Title and Rating */}
-            <View style={styles.titleSection}>
-              <Text style={styles.placeTitle}>{place.name}</Text>
-              <View style={styles.ratingContainer}>
-                <MaterialIcons name="star" size={20} color="#FFD700" />
-                <Text style={styles.ratingText}>{place.rating}</Text>
+            {/* Hero Header Section */}
+            <View style={styles.heroHeader}>
+              {/* Title Row */}
+              <View style={styles.titleRow}>
+                <Text style={styles.placeTitle}>{place.name}</Text>
+                <View style={styles.ratingBadge}>
+                  <MaterialIcons name="star" size={18} color="#fff" />
+                  <Text style={styles.ratingBadgeText}>{place.rating}</Text>
+                </View>
+              </View>
+
+              {/* Location Pill */}
+              <TouchableOpacity style={styles.locationPill} onPress={openFullScreenMap}>
+                <MaterialIcons name="location-on" size={18} color="#2c5aa0" />
+                <Text style={styles.locationPillText}>
+                  {place.geolocation.district}, {place.geolocation.province}
+                </Text>
+                <MaterialIcons name="chevron-right" size={18} color="#999" />
+              </TouchableOpacity>
+
+              {/* Quick Stats */}
+              <View style={styles.quickStats}>
+                <View style={styles.quickStatItem}>
+                  <View style={styles.quickStatIcon}>
+                    <MaterialCommunityIcons name="eye" size={18} color="#2c5aa0" />
+                  </View>
+                  <Text style={styles.quickStatValue}>{(place.popularity_score * 1000).toFixed(0)}</Text>
+                  <Text style={styles.quickStatLabel}>Views</Text>
+                </View>
+                <View style={styles.quickStatDivider} />
+                <View style={styles.quickStatItem}>
+                  <View style={styles.quickStatIcon}>
+                    <MaterialCommunityIcons name="comment-text" size={18} color="#FF9800" />
+                  </View>
+                  <Text style={styles.quickStatValue}>{(place.popularity_score * 150).toFixed(0)}</Text>
+                  <Text style={styles.quickStatLabel}>Reviews</Text>
+                </View>
+                <View style={styles.quickStatDivider} />
+                <View style={styles.quickStatItem}>
+                  <View style={styles.quickStatIcon}>
+                    <MaterialCommunityIcons name="heart" size={18} color="#e53935" />
+                  </View>
+                  <Text style={styles.quickStatValue}>{(place.popularity_score * 200).toFixed(0)}</Text>
+                  <Text style={styles.quickStatLabel}>Favorites</Text>
+                </View>
               </View>
             </View>
 
-            {/* Location */}
-            <View style={styles.locationSection}>
-              <MaterialIcons name="location-on" size={20} color="#666" />
-              <Text style={styles.locationText}>
-                {place.geolocation.district}, {place.geolocation.province}, Sri
-                Lanka
-              </Text>
-            </View>
-
-            {/* Categories */}
+            {/* Categories - Horizontal Scroll */}
             <View style={styles.categoriesSection}>
-              <Text style={styles.sectionTitle}>Categories</Text>
-              <View style={styles.categoriesContainer}>
+              <View style={styles.sectionTitleRow}>
+                <MaterialCommunityIcons name="tag-multiple" size={20} color="#2c5aa0" />
+                <Text style={styles.sectionTitle}>Categories</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoriesScroll}
+              >
                 {place.category.map((categoryName, index) => (
-                  <View key={index} style={styles.categoryTag}>
-                    <Text style={styles.categoryText}>{categoryName}</Text>
+                  <View key={index} style={styles.categoryChip}>
+                    <MaterialCommunityIcons name="tag" size={14} color="#2c5aa0" />
+                    <Text style={styles.categoryChipText}>{categoryName}</Text>
                   </View>
                 ))}
-              </View>
+              </ScrollView>
             </View>
 
-            {/* Description */}
-            <View style={styles.descriptionSection}>
-              <Text style={styles.sectionTitle}>About</Text>
-              <Text style={styles.descriptionText}>{place.description}</Text>
+            {/* About Section with Card */}
+            <View style={styles.aboutSection}>
+              <View style={styles.sectionTitleRow}>
+                <MaterialCommunityIcons name="information" size={20} color="#2c5aa0" />
+                <Text style={styles.sectionTitle}>About</Text>
+              </View>
+              <View style={styles.aboutCard}>
+                <Text style={styles.aboutText}>{place.description}</Text>
+                {place.keywords && place.keywords.length > 0 && (
+                  <View style={styles.keywordsRow}>
+                    {place.keywords.slice(0, 4).map((keyword, index) => (
+                      <View key={index} style={styles.keywordTag}>
+                        <Text style={styles.keywordText}>#{keyword}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
 
             {/* Opening Hours */}
@@ -152,9 +203,11 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
                   <Text style={styles.sectionTitle}>Opening Hours</Text>
                 </View>
                 <View style={styles.openingHoursContainer}>
-                  {Object.entries(place.opening_hours).map(([day, hours], index) => {
+                  {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day, index) => {
+                    const hours = place.opening_hours[day] || place.opening_hours.default || "Closed";
                     const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
                     const isToday = day === today;
+
                     return (
                       <View
                         key={index}
@@ -183,8 +236,6 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
               </View>
             )}
 
-            {/* Stats */}
-            <Stats place={place} />
             {/* Map Section */}
             <MapSection openFullScreenMap={openFullScreenMap} place={place} />
 
@@ -277,15 +328,171 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     flex: 1,
   },
+  // Hero Header Styles
+  heroHeader: {
+    marginBottom: 25,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  placeTitle: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+    flex: 1,
+    lineHeight: 32,
+    marginRight: 10,
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2c5aa0",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 4,
+  },
+  ratingBadgeText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "bold",
+  },
+  locationPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f7fa",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 25,
+    marginBottom: 16,
+    alignSelf: "flex-start",
+  },
+  locationPillText: {
+    fontSize: 14,
+    color: "#333",
+    fontWeight: "500",
+    marginHorizontal: 6,
+  },
+  quickStats: {
+    flexDirection: "row",
+    backgroundColor: "#f8f9fa",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  quickStatItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  quickStatIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickStatValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+    marginBottom: 2,
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: "#888",
+    fontWeight: "500",
+  },
+  quickStatDivider: {
+    width: 1,
+    backgroundColor: "#e0e0e0",
+    marginHorizontal: 10,
+  },
+  // Categories Styles
   categoriesSection: {
     marginBottom: 25,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 15,
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+  },
+  categoriesScroll: {
+    paddingRight: 20,
+  },
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#e3f2fd",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#bbdefb",
+  },
+  categoryChipText: {
+    fontSize: 13,
+    color: "#2c5aa0",
+    fontWeight: "600",
+  },
+  // About Section Styles
+  aboutSection: {
+    marginBottom: 25,
+  },
+  aboutCard: {
+    backgroundColor: "#f8f9fa",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+  },
+  aboutText: {
+    fontSize: 15,
+    color: "#555",
+    lineHeight: 24,
+  },
+  keywordsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
+    gap: 8,
+  },
+  keywordTag: {
+    backgroundColor: "#2c5aa0",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  keywordText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  // Keep old styles for backwards compat
   categoriesContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
