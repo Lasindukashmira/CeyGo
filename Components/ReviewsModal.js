@@ -11,49 +11,53 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
-const ReviewsModal = ({ visible, onClose }) => {
+import { getPlaceReviews } from "../Services/PlacesService";
+
+const ReviewsModal = ({ visible, onClose, placeId }) => {
   const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
+  const [lastDoc, setLastDoc] = useState(null);
   const [hasMore, setHasMore] = useState(true);
 
-  // Dummy data fetcher (replace with actual API call)
-  const fetchReviews = async (pageNumber = 1) => {
-    setLoadingMore(true);
-    // Simulate API fetch delay
-    await new Promise((res) => setTimeout(res, 800));
+  // Fetch initial reviews
+  const fetchReviews = async (isLoadMore = false) => {
+    if (!placeId) return;
 
-    const newReviews = Array.from({ length: 5 }).map((_, index) => ({
-      id: `review-${pageNumber}-${index}`,
-      username: `User ${index + 1 + (pageNumber - 1) * 5}`,
-      userImage: "https://via.placeholder.com/50",
-      rating: Math.floor(Math.random() * 5) + 1,
-      comment:
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent ut turpis ac nulla feugiat consequat. sdf sdf sdf sdf sdf sdf sdf sdf sdf sdf sd fsd fsd ",
-      likes: Math.floor(Math.random() * 50),
-      liked: false,
-    }));
+    if (isLoadMore) {
+      if (loadingMore || !hasMore) return;
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
 
-    setReviews((prev) => [...prev, ...newReviews]);
+    const result = await getPlaceReviews(placeId, isLoadMore ? lastDoc : null);
+
+    if (isLoadMore) {
+      setReviews(prev => [...prev, ...result.reviews]);
+    } else {
+      setReviews(result.reviews);
+    }
+
+    setLastDoc(result.lastDoc);
+    setHasMore(result.reviews.length > 0 && !!result.lastDoc); // Simple check
+
+    setLoading(false);
     setLoadingMore(false);
-
-    if (pageNumber >= 4) setHasMore(false); // simulate no more data after 4 pages
   };
 
   useEffect(() => {
     if (visible) {
       setReviews([]);
-      setPage(1);
+      setLastDoc(null);
       setHasMore(true);
-      fetchReviews(1);
+      fetchReviews(false);
     }
-  }, [visible]);
+  }, [visible, placeId]);
 
   const handleLoadMore = () => {
-    if (!loadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchReviews(nextPage);
+    if (hasMore && !loadingMore) {
+      fetchReviews(true);
     }
   };
 
@@ -62,10 +66,10 @@ const ReviewsModal = ({ visible, onClose }) => {
       prev.map((r) =>
         r.id === id
           ? {
-              ...r,
-              liked: !r.liked,
-              likes: r.liked ? r.likes - 1 : r.likes + 1,
-            }
+            ...r,
+            liked: !r.liked,
+            likes: r.liked ? r.likes - 1 : r.likes + 1,
+          }
           : r
       )
     );
@@ -74,9 +78,13 @@ const ReviewsModal = ({ visible, onClose }) => {
   const renderReview = ({ item }) => (
     <View style={styles.reviewCard}>
       <View style={styles.userRow}>
-        <Image source={{ uri: item.userImage }} style={styles.userImage} />
+        <View style={[styles.userImage, { backgroundColor: '#2c5aa0', justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>
+            {item.username ? item.username.charAt(0).toUpperCase() : "U"}
+          </Text>
+        </View>
         <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={styles.username}>{item.username}</Text>
+          <Text style={styles.username}>{item.username || "Anonymous"}</Text>
           <View style={styles.starsRow}>
             {Array.from({ length: 5 }).map((_, index) => (
               <MaterialIcons
@@ -88,19 +96,13 @@ const ReviewsModal = ({ visible, onClose }) => {
             ))}
           </View>
         </View>
-        <TouchableOpacity
-          onPress={() => toggleLike(item.id)}
-          style={styles.likeButton}
-        >
-          <MaterialIcons
-            name={item.liked ? "favorite" : "favorite-border"}
-            size={22}
-            color={item.liked ? "#FF4C4C" : "#666"}
-          />
-          <Text style={styles.likeCount}>{item.likes}</Text>
-        </TouchableOpacity>
       </View>
-      <Text style={styles.reviewComment}>{item.comment}</Text>
+      <Text style={styles.reviewComment}>{item.reviewText}</Text>
+      {item.createdAt && (
+        <Text style={{ fontSize: 10, color: '#999', marginTop: 5 }}>
+          {item.createdAt?.toDate ? item.createdAt.toDate().toLocaleDateString() : ""}
+        </Text>
+      )}
     </View>
   );
 

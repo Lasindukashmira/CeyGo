@@ -70,7 +70,7 @@ const PlaceCard = ({ item, onPress, getCategoryIcon, rank, navigation }) => {
         {/* Rating Pill */}
         <View style={styles.ratingPill}>
           <MaterialIcons name="star" size={14} color="#FFD700" />
-          <Text style={styles.ratingText}>{item.rating}</Text>
+          <Text style={styles.ratingText}>{item.avgRating}</Text>
         </View>
 
         {/* Favorite Button */}
@@ -132,7 +132,7 @@ const PlaceCard = ({ item, onPress, getCategoryIcon, rank, navigation }) => {
           <View style={styles.statItem}>
             <MaterialCommunityIcons name="comment-text" size={14} color="#888" />
             <Text style={styles.statText}>
-              {(item.popularity_score * 150).toFixed(0)}
+              {item.reviewCount !== undefined ? item.reviewCount : (item.popularity_score * 150).toFixed(0)}
             </Text>
           </View>
           <View style={styles.statDivider} />

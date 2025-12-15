@@ -11,16 +11,37 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import ReviewsModal from "./ReviewsModal";
 
-const ReviewsSection = () => {
+import { addPlaceReview, getUserReview } from "../Services/PlacesService";
+import { useEffect } from "react";
+
+const ReviewsSection = ({ placeId, userId, ratingStats, avgRating, reviewCount, onReviewUpdate, topReview }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [addReviewVisible, setAddReviewVisible] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [userComment, setUserComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const reviewsSummary = {
-    averageRating: 4.5,
-    totalReviews: 128,
-    breakdown: { 5: 80, 4: 30, 3: 10, 2: 5, 1: 3 },
+  // Edit Mode Logic
+  const [existingReview, setExistingReview] = useState(null);
+
+  useEffect(() => {
+    const fetchReview = async () => {
+      if (userId && placeId) {
+        const review = await getUserReview(placeId, userId);
+        setExistingReview(review);
+        if (review) {
+          setUserRating(review.rating);
+          setUserComment(review.reviewText);
+        }
+      }
+    };
+    fetchReview();
+  }, [placeId, userId]);
+
+  const stats = {
+    averageRating: avgRating || 0,
+    totalReviews: reviewCount || 0,
+    breakdown: ratingStats || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
   };
 
   const bestReview = {
@@ -30,16 +51,46 @@ const ReviewsSection = () => {
   };
 
   const progressBarWidth = (count) => {
-    const max = Math.max(...Object.values(reviewsSummary.breakdown));
+    const total = stats.totalReviews > 0 ? stats.totalReviews : 1;
+    // Or use max count like before to scale relative to max bar?
+    // Standard is usually % of total. Google Maps uses % of total.
+    // Previous code used max value. Let's stick to max value for visual "filling" if that's desired, 
+    // or standard %? The previous code: `count / max * 100`. This makes the most frequent bar full width.
+    const values = Object.values(stats.breakdown);
+    const max = values.length > 0 ? Math.max(...values) : 0;
+    if (max === 0) return "0%";
     return (count / max) * 100 + "%";
   };
 
-  const handleAddReviewSubmit = () => {
-    console.log("Rating:", userRating);
-    console.log("Comment:", userComment);
-    setAddReviewVisible(false);
-    setUserRating(0);
-    setUserComment("");
+  const handleAddReviewSubmit = async () => {
+    if (userRating === 0) {
+      alert("Please provide a rating!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const result = await addPlaceReview(userId, placeId, userRating, userComment);
+
+    if (result.success) {
+      const action = result.action === 'updated' ? 'Updated' : 'Submitted';
+      alert(`Review ${action} Successfully!`);
+      setAddReviewVisible(false);
+      // Update local state to reflect change immediately
+      setExistingReview({
+        ...existingReview,
+        rating: userRating,
+        reviewText: userComment,
+        edited: result.action === 'updated' || existingReview?.edited // true if updated
+      });
+
+      // Notify parent to update stats
+      if (onReviewUpdate) {
+        onReviewUpdate(result);
+      }
+    } else {
+      alert("Error submitting review");
+    }
+    setIsSubmitting(false);
   };
 
   return (
@@ -57,14 +108,14 @@ const ReviewsSection = () => {
         <View style={styles.summaryContainer}>
           <View style={styles.averageContainer}>
             <Text style={styles.averageRating}>
-              {reviewsSummary.averageRating}
+              {stats.averageRating ? stats.averageRating.toFixed(1) : "0.0"}
             </Text>
             <View style={styles.starsRow}>
               {Array.from({ length: 5 }).map((_, index) => (
                 <MaterialIcons
                   key={index}
                   name={
-                    index < Math.round(reviewsSummary.averageRating)
+                    index < Math.round(stats.averageRating)
                       ? "star"
                       : "star-border"
                   }
@@ -74,13 +125,13 @@ const ReviewsSection = () => {
               ))}
             </View>
             <Text style={styles.totalReviews}>
-              {reviewsSummary.totalReviews} Reviews
+              {stats.totalReviews} Reviews
             </Text>
           </View>
 
           {/* Progress bars for breakdown */}
           <View style={styles.breakdownContainer}>
-            {Object.keys(reviewsSummary.breakdown)
+            {Object.keys(stats.breakdown)
               .sort((a, b) => b - a)
               .map((star) => (
                 <View key={star} style={styles.breakdownRow}>
@@ -91,45 +142,64 @@ const ReviewsSection = () => {
                         styles.progressFill,
                         {
                           width: progressBarWidth(
-                            reviewsSummary.breakdown[star]
+                            stats.breakdown[star]
                           ),
                         },
                       ]}
                     />
                   </View>
                   <Text style={styles.countText}>
-                    {reviewsSummary.breakdown[star]}
+                    {stats.breakdown[star]}
                   </Text>
                 </View>
               ))}
           </View>
 
           {/* Best review */}
-          <View style={styles.bestReviewContainer}>
-            <Text style={styles.bestReviewTitle}>Top Review</Text>
-            <Text style={styles.bestReviewUser}>{bestReview.username}</Text>
-            <View style={styles.starsRow}>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <MaterialIcons
-                  key={index}
-                  name={index < bestReview.rating ? "star" : "star-border"}
-                  size={16}
-                  color="#FFD700"
-                />
-              ))}
+          {topReview ? (
+            <View style={styles.bestReviewContainer}>
+              <Text style={styles.bestReviewTitle}>Top Review</Text>
+              <Text style={styles.bestReviewUser}>
+                {topReview.username || "Anonymous"}
+              </Text>
+              <View style={styles.starsRow}>
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <MaterialIcons
+                    key={index}
+                    name={index < topReview.rating ? "star" : "star-border"}
+                    size={16}
+                    color="#FFD700"
+                  />
+                ))}
+              </View>
+              <Text style={styles.bestReviewComment} numberOfLines={3}>
+                "{topReview.reviewText}"
+              </Text>
             </View>
-            <Text style={styles.bestReviewComment}>{bestReview.comment}</Text>
-          </View>
+          ) : (
+            <View style={styles.bestReviewContainer}>
+              <Text style={styles.bestReviewTitle}>Top Review</Text>
+              <Text style={[styles.bestReviewComment, { fontStyle: 'italic' }]}>
+                No reviews yet.
+              </Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
 
       {/* Add Your Review Button */}
       <TouchableOpacity
-        style={styles.addReviewButton}
+        style={[styles.addReviewButton, existingReview && styles.editReviewButton]}
         onPress={() => setAddReviewVisible(true)}
       >
-        <MaterialIcons name="rate-review" size={20} color="#fff" />
-        <Text style={styles.addReviewButtonText}>Add Your Review</Text>
+        <MaterialIcons
+          name={existingReview ? "edit" : "rate-review"}
+          size={20}
+          color="#fff"
+        />
+        <Text style={styles.addReviewButtonText}>
+          {existingReview ? "Edit Your Review" : "Add Your Review"}
+        </Text>
       </TouchableOpacity>
 
       {/* Placeholder Modal for all reviews */}
@@ -164,6 +234,7 @@ const ReviewsSection = () => {
       <ReviewsModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
+        placeId={placeId}
       />
 
       {/* Add Review Modal */}
@@ -175,7 +246,9 @@ const ReviewsSection = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Your Review</Text>
+            <Text style={styles.modalTitle}>
+              {existingReview ? "Edit Your Review" : "Add Your Review"}
+            </Text>
 
             {/* Star Rating */}
             <View style={styles.starsRow}>
@@ -204,10 +277,11 @@ const ReviewsSection = () => {
             />
 
             <TouchableOpacity
-              style={styles.submitButton}
+              style={[styles.submitButton, isSubmitting && { opacity: 0.7 }]}
               onPress={handleAddReviewSubmit}
+              disabled={isSubmitting}
             >
-              <Text style={styles.submitButtonText}>Submit Review</Text>
+              <Text style={styles.submitButtonText}>{isSubmitting ? "Submitting..." : "Submit Review"}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -327,6 +401,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     marginTop: 10,
+  },
+  editReviewButton: {
+    backgroundColor: "#FF9800", // Orange for edit
   },
   addReviewButtonText: {
     color: "#fff",

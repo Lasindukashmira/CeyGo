@@ -5,7 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
+
   Dimensions,
   Platform,
   FlatList,
@@ -23,19 +23,51 @@ import ImageGallery from "../Components/placeDetails/ImageGallery";
 import MapSection from "../Components/placeDetails/MapSection";
 import WeatherSection from "../Components/placeDetails/WeatherSection";
 import WeatherModal from "../Components/placeDetails/WeatherModal";
-import { incrementViewCount } from "../Services/PlacesService";
+import { RefreshControl } from "react-native";
+import { incrementViewCount, getPlaceDetails, getTopPlaceReview } from "../Services/PlacesService";
 import { useEffect } from "react";
+import { useAuth } from "../AuthContext";
 
 const { width, height } = Dimensions.get("window");
 
 const PlaceDetailsScreen = ({ route, navigation }) => {
-  const { place } = route.params;
+  const { place: initialPlace } = route.params;
+  const { user } = useAuth();
+
+  // Create a local state for place to update it when reviews change
+  const [place, setPlace] = useState(initialPlace);
+  const [topReview, setTopReview] = useState(null);
+
   const [isWeatherVisible, setIsWeatherVisible] = useState(false);
 
   // Local state for Views to show realtime update
   const [viewCount, setViewCount] = useState(
     place.Views !== undefined ? place.Views : (place.popularity_score * 1000).toFixed(0)
   );
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchPlaceData = async () => {
+    if (place.id) {
+      const freshPlace = await getPlaceDetails(place.id);
+      if (freshPlace) {
+        setPlace(freshPlace);
+        // Also update view count from fresh data
+        if (freshPlace.Views) {
+          setViewCount(freshPlace.Views);
+        }
+      }
+      // Fetch Top Review
+      const review = await getTopPlaceReview(place.id);
+      setTopReview(review);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPlaceData();
+    setRefreshing(false);
+  };
 
   useEffect(() => {
     // Increment view count in Firestore if it's a real place (has ID)
@@ -46,6 +78,9 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
       if (typeof viewCount === 'number') {
         setViewCount(prev => prev + 1);
       }
+
+      // Fetch fresh details immediately to ensure stats are up to date
+      fetchPlaceData();
     }
   }, []);
 
@@ -120,6 +155,9 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2c5aa0"]} />
+          }
         >
           {/* Image Gallery */}
           <ImageGallery placeImages={placeImages} navigation={navigation} />
@@ -132,7 +170,7 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
                 <Text style={styles.placeTitle}>{place.name}</Text>
                 <View style={styles.ratingBadge}>
                   <MaterialIcons name="star" size={18} color="#fff" />
-                  <Text style={styles.ratingBadgeText}>{place.rating}</Text>
+                  <Text style={styles.ratingBadgeText}>{place.avgRating}</Text>
                 </View>
               </View>
 
@@ -161,7 +199,9 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
                   <View style={styles.quickStatIcon}>
                     <MaterialCommunityIcons name="comment-text" size={18} color="#FF9800" />
                   </View>
-                  <Text style={styles.quickStatValue}>{(place.popularity_score * 150).toFixed(0)}</Text>
+                  <Text style={styles.quickStatValue}>
+                    {place.reviewCount !== undefined ? place.reviewCount : (place.popularity_score * 150).toFixed(0)}
+                  </Text>
                   <Text style={styles.quickStatLabel}>Reviews</Text>
                 </View>
                 <View style={styles.quickStatDivider} />
@@ -281,7 +321,19 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
             <NearbyHotelsSection />
             <ToursSection />
             <NearbyAttractionsSection />
-            <ReviewsSection />
+            <ReviewsSection
+              placeId={place.id}
+              userId={user?.uid}
+              ratingStats={place.ratingStats}
+              avgRating={place.avgRating || place.rating}
+              reviewCount={place.reviewCount}
+              onReviewUpdate={async (newStats) => {
+                // Simplest way to ensure ALL stats (breakdown, count, avg) are perfect:
+                // re-fetch the document. The transaction already updated it.
+                await fetchPlaceData();
+              }}
+              topReview={topReview}
+            />
           </View>
         </ScrollView>
 
