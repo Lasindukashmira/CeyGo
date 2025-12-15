@@ -125,7 +125,7 @@ const PlaceCard = ({ item, onPress, getCategoryIcon, rank, navigation }) => {
           <View style={styles.statItem}>
             <MaterialCommunityIcons name="eye" size={14} color="#888" />
             <Text style={styles.statText}>
-              {(item.popularity_score * 1000).toFixed(0)}
+              {item.Views !== undefined ? item.Views : (item.popularity_score * 1000).toFixed(0)}
             </Text>
           </View>
           <View style={styles.statDivider} />

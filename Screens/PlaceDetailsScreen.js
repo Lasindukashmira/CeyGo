@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Image,
   Dimensions,
   Platform,
@@ -24,12 +23,31 @@ import ImageGallery from "../Components/placeDetails/ImageGallery";
 import MapSection from "../Components/placeDetails/MapSection";
 import WeatherSection from "../Components/placeDetails/WeatherSection";
 import WeatherModal from "../Components/placeDetails/WeatherModal";
+import { incrementViewCount } from "../Services/PlacesService";
+import { useEffect } from "react";
 
 const { width, height } = Dimensions.get("window");
 
 const PlaceDetailsScreen = ({ route, navigation }) => {
   const { place } = route.params;
   const [isWeatherVisible, setIsWeatherVisible] = useState(false);
+
+  // Local state for Views to show realtime update
+  const [viewCount, setViewCount] = useState(
+    place.Views !== undefined ? place.Views : (place.popularity_score * 1000).toFixed(0)
+  );
+
+  useEffect(() => {
+    // Increment view count in Firestore if it's a real place (has ID)
+    if (place.id) {
+      incrementViewCount(place.id);
+
+      // Optimistically update local UI
+      if (typeof viewCount === 'number') {
+        setViewCount(prev => prev + 1);
+      }
+    }
+  }, []);
 
   // Use the actual image list from place data
   const placeImages =
@@ -98,7 +116,7 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
 
   return (
     <>
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
@@ -133,7 +151,9 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
                   <View style={styles.quickStatIcon}>
                     <MaterialCommunityIcons name="eye" size={18} color="#2c5aa0" />
                   </View>
-                  <Text style={styles.quickStatValue}>{(place.popularity_score * 1000).toFixed(0)}</Text>
+                  <Text style={styles.quickStatValue}>
+                    {viewCount}
+                  </Text>
                   <Text style={styles.quickStatLabel}>Views</Text>
                 </View>
                 <View style={styles.quickStatDivider} />
@@ -273,7 +293,7 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
           closeWeatherModal={closeWeatherModal}
           place={place}
         />
-      </SafeAreaView>
+      </View>
     </>
   );
 };

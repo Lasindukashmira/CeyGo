@@ -8,8 +8,9 @@ import {
   ScrollView,
   FlatList,
   Image,
-  Dimensions,
   Animated,
+  RefreshControl,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -80,6 +81,7 @@ const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [topPlaces, setTopPlaces] = useState([]); // State for Top Places
+  const [refreshing, setRefreshing] = useState(false);
   const { logout, user } = useAuth(); // Get user from auth context
   const scrollX = useRef(new Animated.Value(0)).current;
   const heroScrollRef = useRef(null);
@@ -88,16 +90,22 @@ const HomeScreen = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  // Auto-scroll hero carousel
+  // Data Loading
+  const fetchPlaces = async (force = false) => {
+    const places = await getTopPlaces(force);
+    if (places && places.length > 0) {
+      setTopPlaces(places);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPlaces(true);
+    setRefreshing(false);
+  };
+
   useEffect(() => {
-    // Load Top Places
-    const loadPlaces = async () => {
-      const places = await getTopPlaces();
-      if (places && places.length > 0) {
-        setTopPlaces(places);
-      }
-    };
-    loadPlaces();
+    fetchPlaces();
 
     // Animations
     Animated.parallel([
@@ -112,7 +120,10 @@ const HomeScreen = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
+  }, []);
 
+  // Auto-scroll hero carousel
+  useEffect(() => {
     const interval = setInterval(() => {
       const nextSlide = (activeSlide + 1) % featuredDestinations.length;
       heroScrollRef.current?.scrollToOffset({
@@ -217,7 +228,13 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2c5aa0"]} />
+        }
+      >
         {/* Header */}
         <Header
           onProfilePress={handleProfilePress}

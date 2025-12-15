@@ -1,20 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 
 const CACHE_KEY = 'cached_top_places';
 const CACHE_EXPIRY_KEY = 'cached_top_places_expiry';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-export const getTopPlaces = async () => {
+export const getTopPlaces = async (forceRefresh = false) => {
     // 1. Check Cache
     try {
-        const cachedData = await AsyncStorage.getItem(CACHE_KEY);
-        const expiry = await AsyncStorage.getItem(CACHE_EXPIRY_KEY);
+        if (!forceRefresh) {
+            const cachedData = await AsyncStorage.getItem(CACHE_KEY);
+            const expiry = await AsyncStorage.getItem(CACHE_EXPIRY_KEY);
 
-        if (cachedData && expiry && Date.now() < parseInt(expiry)) {
-            console.log('Returning cached top places');
-            return JSON.parse(cachedData);
+            if (cachedData && expiry && Date.now() < parseInt(expiry)) {
+                console.log('Returning cached top places');
+                return JSON.parse(cachedData);
+            }
         }
     } catch (error) {
         console.warn('Error reading cache:', error);
@@ -63,5 +65,18 @@ export const clearPlacesCache = async () => {
         console.log('Places cache cleared');
     } catch (error) {
         console.warn('Error clearing cache:', error);
+    }
+};
+
+export const incrementViewCount = async (placeId) => {
+    if (!placeId) return;
+    try {
+        const placeRef = doc(db, "places", placeId);
+        await updateDoc(placeRef, {
+            Views: increment(1)
+        });
+        console.log(`Incremented views for place ${placeId}`);
+    } catch (error) {
+        console.error("Error incrementing view count:", error);
     }
 };
