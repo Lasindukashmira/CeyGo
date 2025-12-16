@@ -38,8 +38,8 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const login = (email, password) => {
-    signInWithEmailAndPassword(auth, email, password);
+  const login = async (email, password) => {
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const register = async (email, password, extraData) => {

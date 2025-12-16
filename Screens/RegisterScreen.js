@@ -12,9 +12,13 @@ import {
   ScrollView,
 } from "react-native";
 import { useAuth } from "../AuthContext";
+import { AntDesign } from "@expo/vector-icons";
+import LoadingScreen from "../Components/LoadingScreen";
+import { Modal } from "react-native";
 
 const RegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
+  const [isRegistering, setIsRegistering] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -77,6 +81,8 @@ const RegisterScreen = ({ navigation }) => {
       return;
     }
 
+    setIsRegistering(true);
+
     try {
       await register(formData.email, formData.password, {
         firstName: formData.firstName,
@@ -86,7 +92,9 @@ const RegisterScreen = ({ navigation }) => {
       });
 
       Alert.alert("Success", "Registration successful!", [{ text: "OK" }]);
+      // Auth context will redirect
     } catch (error) {
+      setIsRegistering(false);
       Alert.alert("Registration Error", error.message);
     }
   };
@@ -227,18 +235,16 @@ const RegisterScreen = ({ navigation }) => {
                   style={styles.socialButton}
                   onPress={handleGoogleLogin}
                 >
-                  <Text style={styles.socialButtonText}>
-                    🔍 Continue with Google
-                  </Text>
+                  <AntDesign name="google" size={20} color="#DB4437" style={styles.socialIcon} />
+                  <Text style={styles.socialButtonText}>Continue with Google</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.socialButton}
                   onPress={handleFacebookLogin}
                 >
-                  <Text style={styles.socialButtonText}>
-                    📘 Continue with Facebook
-                  </Text>
+                  <AntDesign name="facebook-square" size={20} color="#4267B2" style={styles.socialIcon} />
+                  <Text style={styles.socialButtonText}>Continue with Facebook</Text>
                 </TouchableOpacity>
               </View>
 
@@ -262,6 +268,10 @@ const RegisterScreen = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={isRegistering} transparent={false} animationType="fade">
+        <LoadingScreen message="Creating your account..." />
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -370,6 +380,8 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     borderRadius: 12,
     paddingVertical: 14,
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
     shadowColor: "#000",
@@ -380,6 +392,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+  },
+  socialIcon: {
+    marginRight: 10,
   },
   socialButtonText: {
     color: "#333",

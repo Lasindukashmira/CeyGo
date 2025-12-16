@@ -17,8 +17,9 @@ import {
 } from "react-native";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import { getPagedPlaces, searchDestinations } from "../Services/PlacesService";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
+import { getPagedPlaces, searchDestinations, checkIsFavorite, togglePlaceFavorite } from "../Services/PlacesService";
+import { getAuth } from "firebase/auth";
 
 const { width } = Dimensions.get("window");
 
@@ -242,66 +243,105 @@ const ExploreScreen = () => {
     </TouchableOpacity>
   );
 
-  const DestinationCardVertical = ({ item }) => (
-    <TouchableOpacity
-      style={styles.cardVertical}
-      activeOpacity={0.95}
-      onPress={() => navigation.navigate("PlaceDetails", { place: item })}
-    >
-      <Image
-        source={{ uri: item.image_urls?.[0] || 'https://via.placeholder.com/400' }}
-        style={styles.cardImageV}
-        resizeMode="cover"
-      />
+  const DestinationCardVertical = ({ item }) => {
+    const [isFavorited, setIsFavorited] = useState(false);
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const isFocused = useIsFocused();
 
-      {/* Taller Gradient for more content */}
-      <View style={styles.cardGradientOverlay} />
+    useEffect(() => {
+      if (user && item.id) {
+        checkIsFavorite(user.uid, item.id).then(setIsFavorited);
+      }
+    }, [user, item.id, isFocused]);
 
-      {/* Top Actions */}
-      <View style={styles.cardTopRow}>
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryTextBadge}>{item.category?.[0] || "Destination"}</Text>
+    const handleFavoritePress = async () => {
+      if (!user) {
+        alert("Please login to add favorites!");
+        return;
+      }
+
+      const oldState = isFavorited;
+      setIsFavorited(!isFavorited);
+
+      try {
+        await togglePlaceFavorite(user.uid, item.id, oldState);
+      } catch (error) {
+        console.error(error);
+        setIsFavorited(oldState);
+      }
+    };
+
+    return (
+      <TouchableOpacity
+        style={styles.cardVertical}
+        activeOpacity={0.95}
+        onPress={() => navigation.navigate("PlaceDetails", { place: item })}
+      >
+        <Image source={{ uri: item.image_urls?.[0] || item.image }} style={styles.cardImageV} resizeMode="cover" />
+        <View style={styles.cardGradientOverlay} />
+
+        {/* Top Row: Category & Favorite */}
+        <View style={styles.cardTopRow}>
+          <View style={[styles.categoryBadge, { maxWidth: '70%' }]}>
+            <Text style={styles.categoryTextBadge} numberOfLines={1}>
+              {(() => {
+                const cat = item.category || item.categories;
+                let val = "Destination";
+                if (Array.isArray(cat) && cat.length > 0) val = cat[0];
+                else if (typeof cat === 'string') val = cat;
+
+                // Fallback if value looks like a URL or is too long/empty
+                if (!val || val.includes('http') || val.length > 30) return "Destination";
+                return val;
+              })()}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={handleFavoritePress} style={{ padding: 5 }}>
+            <MaterialIcons name={isFavorited ? "favorite" : "favorite-border"} size={26} color={isFavorited ? "#ff4757" : "#fff"} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.favBtn}>
-          <MaterialIcons name="favorite-border" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
+        {/* Rich Content Overlay */}
+        <View style={styles.cardContentOverlay}>
+          <View style={styles.headerRow}>
+            <Text style={styles.cardTitleV} numberOfLines={1}>{item.name}</Text>
+            <View style={styles.ratingPill}>
+              <MaterialIcons name="star" size={12} color="#FFD700" />
+              <Text style={styles.ratingTextV}>{item.avgRating ? Number(item.avgRating).toFixed(1) : (0)}</Text>
+            </View>
+          </View>
 
-      {/* Rich Content Overlay */}
-      <View style={styles.cardContentOverlay}>
-        <View style={styles.headerRow}>
-          <Text style={styles.cardTitleV} numberOfLines={1}>{item.name}</Text>
-          <View style={styles.ratingPill}>
-            <MaterialIcons name="star" size={12} color="#FFD700" />
-            <Text style={styles.ratingTextV}>{item.avgRating ? Number(item.avgRating).toFixed(1) : (0)}</Text>
+          <View style={styles.locRow}>
+            <MaterialIcons name="location-on" size={14} color="#ddd" />
+            <Text style={styles.cardLocV} numberOfLines={1}>{item.geolocation?.full_address || item.district}</Text>
+          </View>
+
+          {/* Description Summary */}
+          <Text style={styles.cardSummary} numberOfLines={2}>
+            {item.description || "Discover this amazing place with breathtaking views and rich history. A must-visit destination in Sri Lanka."}
+          </Text>
+
+          {/* Bottom Stats Row */}
+          <View style={styles.statsRowOnImage}>
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="heart" size={16} color="#fff" />
+              <Text style={styles.statText}>{item.favoriteCount || 0}</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="eye-outline" size={16} color="#fff" />
+              <Text style={styles.statText}>{item.Views || 0} Views</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <MaterialCommunityIcons name="comment-text-outline" size={14} color="#fff" />
+              <Text style={styles.statText}>{item.reviewCount || 0} Reviews</Text>
+            </View>
           </View>
         </View>
-
-        <View style={styles.locRow}>
-          <MaterialIcons name="location-on" size={14} color="#ddd" />
-          <Text style={styles.cardLocV} numberOfLines={1}>{item.geolocation?.full_address || item.district}</Text>
-        </View>
-
-        {/* Description Summary */}
-        <Text style={styles.cardSummary} numberOfLines={2}>
-          {item.description || "Discover this amazing place with breathtaking views and rich history. A must-visit destination in Sri Lanka."}
-        </Text>
-
-        {/* Bottom Stats Row */}
-        <View style={styles.statsRowOnImage}>
-          <View style={styles.statItem}>
-            <MaterialCommunityIcons name="eye-outline" size={16} color="#fff" />
-            <Text style={styles.statText}>{item.Views} Views</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <MaterialCommunityIcons name="comment-text-outline" size={14} color="#fff" />
-            <Text style={styles.statText}>{item.reviewCount || 0} Reviews</Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const FeatureCard = ({ item, type }) => (
     <TouchableOpacity style={styles.featureCard} activeOpacity={0.9}>

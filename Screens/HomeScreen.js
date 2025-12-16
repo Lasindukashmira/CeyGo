@@ -15,7 +15,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { catergory, districs, tempTop10, topHotels } from "../constData";
-import { getTopPlaces } from "../Services/PlacesService"; // Import Service
+import { getAuth } from "firebase/auth";
+import {
+  getTopPlaces,
+  checkIsFavorite,
+  togglePlaceFavorite
+} from "../Services/PlacesService"; // Import Service
 import Header from "../Components/Header";
 import SectionHeader from "../Components/SectionHeader";
 import CategoryCard from "../Components/CategoryCard";

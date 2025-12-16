@@ -1,5 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { collection, query, orderBy, limit, getDocs, doc, updateDoc, increment, addDoc, serverTimestamp, where, runTransaction, getDoc, startAfter } from 'firebase/firestore';
+import {
+    collection, query, orderBy, limit, getDocs, doc, updateDoc, increment, addDoc, serverTimestamp, where, runTransaction, getDoc, startAfter, // Added for pagination
+    setDoc,
+    deleteDoc
+} from "firebase/firestore";
 import { db } from '../firebaseConfig';
 
 const CACHE_KEY = 'cached_top_places';
@@ -515,5 +519,73 @@ export const searchDestinations = async (searchTerm) => {
     } catch (e) {
         console.error("Error searching destinations:", e);
         return [];
+    }
+};
+
+// --- Favorites System ---
+
+// Get User Favorites
+export const getUserFavorites = async (userId) => {
+    try {
+        const q = query(collection(db, "placeFavorite"), where("userId", "==", userId));
+        const querySnapshot = await getDocs(q);
+
+        const placeIds = querySnapshot.docs.map(doc => doc.data().placeId);
+
+        if (placeIds.length === 0) return [];
+
+        const placePromises = placeIds.map(id => getDoc(doc(db, "places", id)));
+        const placeSnaps = await Promise.all(placePromises);
+
+        return placeSnaps
+            .filter(snap => snap.exists())
+            .map(snap => ({ id: snap.id, ...snap.data() }));
+
+    } catch (e) {
+        console.error("Error fetching favorites:", e);
+        return [];
+    }
+};
+
+// Check if place is favorited by user
+export const checkIsFavorite = async (userId, placeId) => {
+    try {
+        const docRef = doc(db, "placeFavorite", `${userId}_${placeId}`);
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists();
+    } catch (e) {
+        console.error("Error checking favorite:", e);
+        return false;
+    }
+};
+
+// Toggle Favorite (Transaction for Consistency)
+export const togglePlaceFavorite = async (userId, placeId, isCurrentlyFavorite) => {
+    const favRef = doc(db, "placeFavorite", `${userId}_${placeId}`);
+    const placeRef = doc(db, "places", placeId);
+
+    try {
+        await runTransaction(db, async (transaction) => {
+            const placeDoc = await transaction.get(placeRef);
+            if (!placeDoc.exists()) throw "Place does not exist!";
+
+            if (isCurrentlyFavorite) {
+                // Remove Favorite
+                transaction.delete(favRef);
+                transaction.update(placeRef, { favoriteCount: increment(-1) });
+            } else {
+                // Add Favorite
+                transaction.set(favRef, {
+                    userId,
+                    placeId,
+                    createdAt: serverTimestamp()
+                });
+                transaction.update(placeRef, { favoriteCount: increment(1) });
+            }
+        });
+        return !isCurrentlyFavorite; // Return new state
+    } catch (e) {
+        console.error("Error toggling favorite:", e);
+        throw e;
     }
 };

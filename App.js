@@ -12,13 +12,14 @@ import { AuthProvider, useAuth } from "./AuthContext";
 
 import { StyleSheet, View } from "react-native";
 import LottieView from "lottie-react-native";
+import LoadingScreen from "./Components/LoadingScreen";
 
 const Stack = createStackNavigator();
 
 function Root() {
   const { user, loading } = useAuth();
 
-  if (loading) return null;
+  if (loading) return <LoadingScreen message="Checking authentication..." />;
 
   return (
     <NavigationContainer>

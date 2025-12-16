@@ -1,120 +1,108 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-
   TextInput,
   TouchableOpacity,
   FlatList,
   Image,
   Dimensions,
+  ActivityIndicator
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from '@react-navigation/native';
+import { getAuth } from 'firebase/auth';
+import { getUserFavorites, togglePlaceFavorite } from '../Services/PlacesService';
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-// Dummy Favourite Data
-const dummyFavourites = {
-  places: [
-    {
-      id: "p1",
-      type: "place",
-      name: "Sigiriya Rock Fortress",
-      location: "Matale, Central Province",
-      rating: 4.8,
-      image: "https://beyondescapes.com/uploads/excursions/BW4YPnXzX3u1.jpg",
-      category: "Historical & Cultural",
-    },
-    {
-      id: "p2",
-      type: "place",
-      name: "Temple of Tooth Relic",
-      location: "Kandy, Central Province",
-      rating: 4.7,
-      image: "https://cdn.britannica.com/19/118219-050-8BA0B67E/Dalada-Maligava-tooth-Buddha-Sri-Lanka-Kandy.jpg",
-      category: "Religious & Spiritual",
-    },
-    {
-      id: "p3",
-      type: "place",
-      name: "Mirissa Beach",
-      location: "Matara, Southern Province",
-      rating: 4.7,
-      image: "https://digitaltravelcouple.com/wp-content/uploads/2020/01/mirissa-beach-sri-lanka-1.jpg",
-      category: "Beaches & Coastal",
-    },
-  ],
-  hotels: [
-    {
-      id: "h1",
-      type: "hotel",
-      name: "Cinnamon Grand Colombo",
-      location: "Colombo",
-      rating: 4.6,
-      price: "$150/night",
-      image: "https://picsum.photos/400/300?hotel1",
-      amenities: ["wifi", "pool", "restaurant"],
-    },
-    {
-      id: "h2",
-      type: "hotel",
-      name: "Jetwing Lighthouse",
-      location: "Galle",
-      rating: 4.8,
-      price: "$200/night",
-      image: "https://picsum.photos/400/300?hotel2",
-      amenities: ["wifi", "spa", "pool"],
-    },
-  ],
-  tours: [
-    {
-      id: "t1",
-      type: "tour",
-      name: "Whale Watching Adventure",
-      location: "Mirissa",
-      rating: 4.6,
-      price: "$70/person",
-      duration: "5 hours",
-      image: "https://picsum.photos/400/300?tour1",
-    },
-    {
-      id: "t2",
-      type: "tour",
-      name: "Yala Safari Experience",
-      location: "Hambantota",
-      rating: 4.7,
-      price: "$85/person",
-      duration: "Full Day",
-      image: "https://picsum.photos/400/300?tour2",
-    },
-  ],
-};
-
 const FavouritesScreen = ({ navigation }) => {
   const [selectedTab, setSelectedTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [favourites, setFavourites] = useState([]); // Real Data
+  const [loading, setLoading] = useState(true);
+
+  const auth = getAuth();
+  const user = auth.currentUser;
 
   const tabs = ["All", "Places", "Hotels", "Tours"];
+
+  // Fetch Logic
+  const fetchFavorites = async () => {
+    console.log("Fetching favorites for:", user?.uid);
+    if (!user) {
+      setFavourites([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await getUserFavorites(user.uid);
+      console.log("Favorites fetched:", data.length);
+
+      const formattedData = data.map((item) => ({
+        ...item,
+        type: 'place',
+        image: item.image_urls?.[0] || item.image || "https://neilpatel.com/wp-content/uploads/2017/08/colors.jpg",
+        location: item.geolocation?.district || item.district || "Sri Lanka",
+        rating: item.avgRating ? Number(item.avgRating).toFixed(1) : "New",
+        category: Array.isArray(item.category) ? item.category[0] : (item.category || "Destination")
+      }));
+
+      setFavourites(formattedData);
+    } catch (error) {
+      console.error("Error in fetchFavorites:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchFavorites();
+    }, [user])
+  );
+
+  const handleRemoveFavourite = async (item) => {
+    if (!user) return;
+
+    // Optimistic Update
+    const oldFavs = favourites;
+    setFavourites(prev => prev.filter(f => f.id !== item.id));
+
+    try {
+      await togglePlaceFavorite(user.uid, item.id, true); // true because we are removing
+    } catch (e) {
+      console.error("Error removing fav:", e);
+      setFavourites(oldFavs); // Revert
+    }
+  };
+
+  const handleItemPress = (item) => {
+    navigation.navigate("PlaceDetails", { place: item });
+  };
 
   // Get filtered data based on selected tab
   const getFilteredData = () => {
     let data = [];
 
+    // Currently we only have "Places" in DB. 
+    // Hotels and Tours logic remains looking at empty lists or dummy if you wanted.
+    // User said "grab real data", so we focus on that.
+
     if (selectedTab === "All") {
-      data = [
-        ...dummyFavourites.places,
-        ...dummyFavourites.hotels,
-        ...dummyFavourites.tours,
-      ];
+      data = favourites;
     } else if (selectedTab === "Places") {
-      data = dummyFavourites.places;
+      data = favourites.filter(item => item.type === 'place');
     } else if (selectedTab === "Hotels") {
-      data = dummyFavourites.hotels;
+      // Future: Filter by type='hotel' if we add that field
+      data = [];
     } else if (selectedTab === "Tours") {
-      data = dummyFavourites.tours;
+      data = [];
     }
 
     // Apply search filter
@@ -131,38 +119,20 @@ const FavouritesScreen = ({ navigation }) => {
 
   const getTypeIcon = (type) => {
     switch (type) {
-      case "place":
-        return "map-marker";
-      case "hotel":
-        return "bed";
-      case "tour":
-        return "compass";
-      default:
-        return "heart";
+      case "place": return "map-marker";
+      case "hotel": return "bed";
+      case "tour": return "compass";
+      default: return "heart";
     }
   };
 
   const getTypeColor = (type) => {
     switch (type) {
-      case "place":
-        return "#4CAF50";
-      case "hotel":
-        return "#FF9800";
-      case "tour":
-        return "#9C27B0";
-      default:
-        return "#2c5aa0";
+      case "place": return "#4CAF50";
+      case "hotel": return "#FF9800";
+      case "tour": return "#9C27B0";
+      default: return "#2c5aa0";
     }
-  };
-
-  const handleRemoveFavourite = (item) => {
-    // TODO: Implement Firebase remove functionality
-    console.log("Remove from favourites:", item.name);
-  };
-
-  const handleItemPress = (item) => {
-    // TODO: Navigate to detail screens when pressed
-    console.log("Navigate to:", item.name);
   };
 
   const renderFavouriteCard = ({ item }) => (
@@ -206,22 +176,11 @@ const FavouritesScreen = ({ navigation }) => {
             <MaterialIcons name="star" size={14} color="#FFD700" />
             <Text style={styles.ratingText}>{item.rating}</Text>
           </View>
-
-          {item.price && (
-            <Text style={styles.priceText}>{item.price}</Text>
-          )}
-
-          {item.duration && (
-            <View style={styles.durationContainer}>
-              <MaterialCommunityIcons name="clock-outline" size={12} color="#666" />
-              <Text style={styles.durationText}>{item.duration}</Text>
-            </View>
-          )}
         </View>
 
         {item.category && (
           <View style={styles.categoryTag}>
-            <Text style={styles.categoryText}>{item.category}</Text>
+            <Text style={styles.categoryText} numberOfLines={1}>{item.category}</Text>
           </View>
         )}
       </View>
@@ -235,7 +194,7 @@ const FavouritesScreen = ({ navigation }) => {
       <Text style={styles.emptySubtitle}>
         {searchQuery
           ? "Try a different search term"
-          : "Start exploring and save your favourite places!"}
+          : user ? "Start exploring and save your favourite places!" : "Please login to view favorites"}
       </Text>
       {!searchQuery && (
         <TouchableOpacity
@@ -250,6 +209,14 @@ const FavouritesScreen = ({ navigation }) => {
   );
 
   const data = getFilteredData();
+
+  if (loading && favourites.length === 0) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#2c5aa0" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -283,15 +250,8 @@ const FavouritesScreen = ({ navigation }) => {
         {tabs.map((tab) => {
           const isActive = selectedTab === tab;
           const count =
-            tab === "All"
-              ? dummyFavourites.places.length +
-              dummyFavourites.hotels.length +
-              dummyFavourites.tours.length
-              : tab === "Places"
-                ? dummyFavourites.places.length
-                : tab === "Hotels"
-                  ? dummyFavourites.hotels.length
-                  : dummyFavourites.tours.length;
+            tab === "All" ? favourites.length :
+              tab === "Places" ? favourites.filter(i => i.type === 'place').length : 0;
 
           return (
             <TouchableOpacity
@@ -414,6 +374,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 20,
+    minHeight: '100%'
   },
   row: {
     justifyContent: "space-between",
@@ -444,6 +405,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
     gap: 4,
+    zIndex: 1
   },
   typeBadgeText: {
     color: "#fff",
@@ -462,6 +424,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 3,
+    zIndex: 1
   },
   cardContent: {
     padding: 12,
@@ -497,20 +460,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
     marginLeft: 3,
-  },
-  priceText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#2c5aa0",
-  },
-  durationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  durationText: {
-    fontSize: 11,
-    color: "#666",
   },
   categoryTag: {
     marginTop: 8,

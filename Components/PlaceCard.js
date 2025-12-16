@@ -8,19 +8,42 @@ import {
   Dimensions,
 } from "react-native";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { getAuth } from "firebase/auth";
+import { checkIsFavorite, togglePlaceFavorite } from "../Services/PlacesService";
+import { useIsFocused } from "@react-navigation/native";
 
 const { width } = Dimensions.get("window");
 
 const PlaceCard = ({ item, onPress, getCategoryIcon, rank, navigation }) => {
   const [isFavorited, setIsFavorited] = useState(false);
+  const auth = getAuth();
+  const user = auth.currentUser;
+  const isFocused = useIsFocused(); // Re-render triggers when screen comes into focus
 
-  const handleFavoritePress = (event) => {
+  // Check status on mount AND focus
+  React.useEffect(() => {
+    if (user && item.id) {
+      checkIsFavorite(user.uid, item.id).then(setIsFavorited);
+    }
+  }, [user, item.id, isFocused]); // Added isFocused dependency
+
+  const handleFavoritePress = async (event) => {
     event.stopPropagation();
+    if (!user) {
+      alert("Please login to add favorites!");
+      return;
+    }
+
+    // Optimistic Update
+    const oldState = isFavorited;
     setIsFavorited(!isFavorited);
-    console.log(
-      `${isFavorited ? "Removed from" : "Added to"} favorites:`,
-      item.name
-    );
+
+    try {
+      await togglePlaceFavorite(user.uid, item.id, oldState);
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+      setIsFavorited(oldState); // Revert on error
+    }
   };
 
   const handleCardPress = () => {
@@ -139,7 +162,7 @@ const PlaceCard = ({ item, onPress, getCategoryIcon, rank, navigation }) => {
           <View style={styles.statItem}>
             <MaterialCommunityIcons name="heart" size={14} color="#888" />
             <Text style={styles.statText}>
-              {(item.popularity_score * 200).toFixed(0)}
+              {item.favoriteCount}
             </Text>
           </View>
         </View>

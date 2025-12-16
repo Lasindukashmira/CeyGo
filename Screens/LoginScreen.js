@@ -9,13 +9,17 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useAuth } from "../AuthContext"; //
+import { useAuth } from "../AuthContext";
+import { AntDesign } from "@expo/vector-icons";
+import LoadingScreen from "../Components/LoadingScreen";
+import { Modal } from "react-native";
 
 const LoginScreen = ({ navigation }) => {
   const { login } = useAuth(); // ✅ get login function from AuthContext
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleLogin = async () => {
     try {
@@ -33,10 +37,13 @@ const LoginScreen = ({ navigation }) => {
         return;
       }
 
+      setIsLoggingIn(true);
       await login(email, password); // ✅ login via AuthContext
-      // user state handled by AuthContext
+      // Success? The AuthContext listener will redirect us.
+      // We can keep loading true until unmount or let nature take its course.
     } catch (err) {
       setError(err.message);
+      setIsLoggingIn(false);
     }
   };
 
@@ -99,15 +106,13 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.orText}>OR</Text>
 
               <TouchableOpacity style={styles.socialButton}>
-                <Text style={styles.socialButtonText}>
-                  🔍 Continue with Google
-                </Text>
+                <AntDesign name="google" size={20} color="#DB4437" style={styles.socialIcon} />
+                <Text style={styles.socialButtonText}>Continue with Google</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.socialButton}>
-                <Text style={styles.socialButtonText}>
-                  📘 Continue with Facebook
-                </Text>
+                <AntDesign name="facebook-square" size={20} color="#4267B2" style={styles.socialIcon} />
+                <Text style={styles.socialButtonText}>Continue with Facebook</Text>
               </TouchableOpacity>
             </View>
 
@@ -121,6 +126,10 @@ const LoginScreen = ({ navigation }) => {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal visible={isLoggingIn} transparent={false} animationType="fade">
+        <LoadingScreen message="Logging you in..." />
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -180,6 +189,8 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     borderRadius: 12,
     paddingVertical: 14,
+    flexDirection: "row", // Align icon and text row
+    justifyContent: "center", // Center content
     alignItems: "center",
     marginBottom: 12,
     shadowColor: "#000",
@@ -187,6 +198,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+  },
+  socialIcon: {
+    marginRight: 10,
   },
   socialButtonText: { color: "#333", fontSize: 16, fontWeight: "500" },
   registerContainer: {
