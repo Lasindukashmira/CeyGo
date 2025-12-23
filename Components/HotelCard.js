@@ -2,15 +2,35 @@ import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 
-const HotelCard = ({ item, responsiveWidth }) => {
+const HotelCard = ({ item, responsiveWidth, navigation }) => {
+    const handlePress = () => {
+        if (navigation) {
+            if (item.type === 'Restaurant') {
+                navigation.navigate("RestaurantDetails", { restaurant: item });
+            } else {
+                navigation.navigate("HotelDetails", { hotel: item });
+            }
+        }
+    };
+
     return (
-        <TouchableOpacity activeOpacity={0.9} style={styles.card}>
+        <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={handlePress}>
             <View style={styles.imageContainer}>
                 <Image source={{ uri: item.image }} style={styles.image} />
                 <View style={styles.ratingBadge}>
                     <MaterialIcons name="star" size={14} color="#FFD700" />
                     <Text style={styles.ratingText}>{item.rating}</Text>
                 </View>
+                {item.type && (
+                    <View style={[styles.typeBadge, item.type === 'Restaurant' && styles.typeBadgeRestaurant]}>
+                        <MaterialCommunityIcons
+                            name={item.type === 'Restaurant' ? 'silverware-fork-knife' : 'bed'}
+                            size={12}
+                            color="#fff"
+                        />
+                        <Text style={styles.typeText}>{item.type}</Text>
+                    </View>
+                )}
                 <TouchableOpacity style={styles.favoriteButton}>
                     <MaterialCommunityIcons name="heart-outline" size={20} color="#fff" />
                 </TouchableOpacity>
@@ -199,6 +219,26 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontSize: 12,
         fontWeight: "bold",
+    },
+    typeBadge: {
+        position: "absolute",
+        bottom: 15,
+        left: 15,
+        backgroundColor: "#2c5aa0",
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
+        gap: 4,
+    },
+    typeBadgeRestaurant: {
+        backgroundColor: "#FF9800",
+    },
+    typeText: {
+        color: "#fff",
+        fontWeight: "bold",
+        fontSize: 11,
     },
 });
 

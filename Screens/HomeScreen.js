@@ -14,13 +14,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { catergory, districs, tempTop10, topHotels } from "../constData";
+import { catergory, districs, tempTop10, topHotels, topRestaurants } from "../constData";
 import { getAuth } from "firebase/auth";
 import {
   getTopPlaces,
   checkIsFavorite,
   togglePlaceFavorite
-} from "../Services/PlacesService"; // Import Service
+} from "../Services/PlacesService";
+// API service kept for future use
+// import { getTopHotels, getTopRestaurants } from "../Services/TripAdvisorService";
 import Header from "../Components/Header";
 import SectionHeader from "../Components/SectionHeader";
 import CategoryCard from "../Components/CategoryCard";
@@ -85,7 +87,9 @@ const HomeScreen = ({ navigation }) => {
   const [activeSlide, setActiveSlide] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
-  const [topPlaces, setTopPlaces] = useState([]); // State for Top Places
+  const [topPlaces, setTopPlaces] = useState([]);
+  const [hotels, setHotels] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const { logout, user } = useAuth(); // Get user from auth context
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -103,6 +107,21 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  // Temporarily using dummy data for hotels/restaurants
+  // Uncomment below and remove dummy data when API is ready
+  // const fetchHotelsAndRestaurants = async (force = false) => {
+  //   try {
+  //     const [hotelsData, restaurantsData] = await Promise.all([
+  //       getTopHotels('Sri Lanka', force),
+  //       getTopRestaurants('Sri Lanka', force),
+  //     ]);
+  //     if (hotelsData && hotelsData.length > 0) setHotels(hotelsData);
+  //     if (restaurantsData && restaurantsData.length > 0) setRestaurants(restaurantsData);
+  //   } catch (error) {
+  //     console.error('Error fetching hotels/restaurants:', error);
+  //   }
+  // };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchPlaces(true);
@@ -111,6 +130,7 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchPlaces();
+    // fetchHotelsAndRestaurants(); // Commented out - using dummy data
 
     // Animations
     Animated.parallel([
@@ -213,7 +233,7 @@ const HomeScreen = ({ navigation }) => {
   );
 
   const renderHotelCard = ({ item }) => (
-    <HotelCard item={item} responsiveWidth={width} />
+    <HotelCard item={item} responsiveWidth={width} navigation={navigation} />
   );
 
   const renderOfferCard = ({ item }) => (
@@ -392,6 +412,7 @@ const HomeScreen = ({ navigation }) => {
 
 
 
+        {/* Top Hotels Section */}
         <View style={styles.section}>
           <SectionHeader
             title="🏨 Top Hotels & Resorts"
@@ -399,6 +420,22 @@ const HomeScreen = ({ navigation }) => {
           />
           <FlatList
             data={topHotels}
+            renderItem={renderHotelCard}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.hotelList}
+          />
+        </View>
+
+        {/* Top Restaurants Section */}
+        <View style={styles.section}>
+          <SectionHeader
+            title="🍽️ Best Restaurants"
+            onSeeAllPress={() => console.log("See all restaurants")}
+          />
+          <FlatList
+            data={topRestaurants}
             renderItem={renderHotelCard}
             keyExtractor={(item) => item.id}
             horizontal

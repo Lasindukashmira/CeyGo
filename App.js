@@ -8,6 +8,8 @@ import RegisterScreen from "./Screens/RegisterScreen";
 import MainTabNavigator from "./Screens/MainTabNavigator";
 import PlaceDetailsScreen from "./Screens/PlaceDetailsScreen";
 import DistrictDetailsScreen from "./Screens/DistrictDetailsScreen";
+import HotelDetailsScreen from "./Screens/HotelDetailsScreen";
+import RestaurantDetailsScreen from "./Screens/RestaurantDetailsScreen";
 import { AuthProvider, useAuth } from "./AuthContext";
 
 import { StyleSheet, View } from "react-native";
@@ -41,6 +43,20 @@ function Root() {
           <Stack.Screen
             name="DistrictDetails"
             component={DistrictDetailsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="HotelDetails"
+            component={HotelDetailsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="RestaurantDetails"
+            component={RestaurantDetailsScreen}
             options={{
               headerShown: false,
             }}
