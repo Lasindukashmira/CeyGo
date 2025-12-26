@@ -44,7 +44,7 @@ const HotelCard = ({ item, responsiveWidth, navigation }) => {
                 </View>
 
                 <View style={styles.locationRow}>
-                    <MaterialIcons name="location-on" size={14} color="#666" />
+
                     <Text style={styles.locationText} numberOfLines={1}>
                         {item.location}
                     </Text>
@@ -69,11 +69,16 @@ const HotelCard = ({ item, responsiveWidth, navigation }) => {
 
                 <View style={styles.footer}>
                     <View>
-                        <Text style={styles.priceLabel}>Start from</Text>
+                        <Text style={styles.priceLabel}>{item.price ? 'Start from' : 'Availability'}</Text>
                         <Text style={styles.price}>
-                            LKR {item.price.toLocaleString()}
-                            <Text style={styles.perNight}> / night</Text>
+                            {item.priceLKR
+                                ? `Rs. ${item.priceLKR.toLocaleString()}`
+                                : (item.price ? `$ ${item.price.toLocaleString()}` : 'Price on request')}
+                            {item.price && <Text style={styles.perNight}> / night</Text>}
                         </Text>
+                        {item.priceLKR && item.price && (
+                            <Text style={styles.usdPrice}>$ {item.price.toLocaleString()}</Text>
+                        )}
                     </View>
                     <TouchableOpacity style={styles.bookButton}>
                         <Text style={styles.bookButtonText}>Book</Text>
@@ -208,6 +213,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: "normal",
         color: "#999",
+    },
+    usdPrice: {
+        fontSize: 11,
+        color: "#888",
+        marginTop: -2,
     },
     bookButton: {
         backgroundColor: "#2c5aa0",

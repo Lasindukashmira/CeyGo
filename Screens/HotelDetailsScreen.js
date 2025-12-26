@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
     View,
     Text,
@@ -10,13 +10,15 @@ import {
     Image,
     StatusBar,
     Linking,
-    Alert,
     Share,
     FlatList,
+    ActivityIndicator,
 } from "react-native";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { getHotelDetails } from "../Services/TripAdvisorService";
 
 const { width, height } = Dimensions.get("window");
 
@@ -121,16 +123,66 @@ const DUMMY_HOTEL = {
 const HotelDetailsScreen = ({ route, navigation }) => {
     // Use passed hotel data or fall back to dummy data
     const hotelData = route.params?.hotel || {};
-    const hotel = { ...DUMMY_HOTEL, ...hotelData };
+    const [hotel, setHotel] = useState({ ...DUMMY_HOTEL, ...hotelData });
+    const [loading, setLoading] = useState(false);
 
     const [isFavorite, setIsFavorite] = useState(false);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const imageScrollRef = useRef(null);
+    const mapRef = useRef(null);
+
+    // Fetch deep details if property_token or serpapi_link is present
+    useEffect(() => {
+        const fetchDeepDetails = async () => {
+            if (hotelData.property_token || hotelData.serpapi_link) {
+                setLoading(true);
+                const deepDetails = await getHotelDetails(hotelData.property_token, hotelData.serpapi_link);
+                if (deepDetails) {
+                    // Map SERPAPI response to our hotel object structure
+                    const enrichedHotel = {
+                        ...hotel,
+                        ...deepDetails,
+                        images: deepDetails.images || deepDetails.photos || hotel.images,
+                        amenities: deepDetails.amenities || hotel.amenities,
+                        overall_rating: deepDetails.overall_rating || hotel.overall_rating,
+                        reviews: deepDetails.reviews || hotel.reviews,
+                        description: deepDetails.description || hotel.description,
+                        check_in_time: deepDetails.check_in_time || hotel.check_in_time,
+                        check_out_time: deepDetails.check_out_time || hotel.check_out_time,
+                        nearby_places: deepDetails.nearby_places || hotel.nearby_places,
+                        gps_coordinates: deepDetails.gps_coordinates || hotel.gps_coordinates,
+                    };
+                    setHotel(enrichedHotel);
+                }
+                setLoading(false);
+            }
+        };
+
+        fetchDeepDetails();
+    }, [hotelData.property_token]);
+
+    // Animation: Start Zoomed IN, then Zoom OUT (Map)
+    useEffect(() => {
+        if (mapRef.current && hotel.gps_coordinates) {
+            const targetRegion = {
+                latitude: hotel.gps_coordinates.latitude,
+                longitude: hotel.gps_coordinates.longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+            };
+
+            const timer = setTimeout(() => {
+                mapRef.current.animateToRegion(targetRegion, 2000);
+            }, 1000);
+
+            return () => clearTimeout(timer);
+        }
+    }, [hotel.gps_coordinates, loading]);
 
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `Check out ${hotel.name} on CeyGo!\n\nLocation: ${hotel.address || hotel.location}\nRating: ${hotel.overall_rating || hotel.rating} ⭐\nPrice: ${hotel.rate_per_night?.lowest || `LKR ${hotel.price?.toLocaleString()}`} per night`,
+                message: `Check out ${hotel.name} on CeyGo!\n\nLocation: ${hotel.address || hotel.location}\nRating: ${hotel.overall_rating || hotel.rating} ⭐\nPrice: ${hotel.rate_per_night?.lowest || `$ ${hotel.price?.toLocaleString()}`} per night`,
                 title: hotel.name,
             });
         } catch (error) {
@@ -277,14 +329,23 @@ const HotelDetailsScreen = ({ route, navigation }) => {
 
                     {/* Premium Labels Over Image */}
                     <View style={styles.premiumLabelsContainer}>
-                        <View style={styles.premiumBadge}>
-                            <MaterialCommunityIcons name="star-circle" size={16} color="#FFD700" />
-                            <Text style={styles.premiumBadgeText}>{hotel.hotel_class || "5-star hotel"}</Text>
-                        </View>
-                        {hotel.eco_certified && (
-                            <View style={[styles.premiumBadge, styles.ecoPremiumBadge]}>
-                                <MaterialCommunityIcons name="leaf" size={18} color="#4CAF50" />
+                        {loading ? (
+                            <View style={[styles.premiumBadge, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+                                <ActivityIndicator size="small" color="#fff" />
+                                <Text style={[styles.premiumBadgeText, { marginLeft: 6 }]}>Loading details...</Text>
                             </View>
+                        ) : (
+                            <>
+                                <View style={styles.premiumBadge}>
+                                    <MaterialCommunityIcons name="star-circle" size={16} color="#FFD700" />
+                                    <Text style={styles.premiumBadgeText}>{hotel.hotel_class || "5-star hotel"}</Text>
+                                </View>
+                                {hotel.eco_certified && (
+                                    <View style={[styles.premiumBadge, styles.ecoPremiumBadge]}>
+                                        <MaterialCommunityIcons name="leaf" size={18} color="#4CAF50" />
+                                    </View>
+                                )}
+                            </>
                         )}
                     </View>
                 </View>
@@ -337,9 +398,11 @@ const HotelDetailsScreen = ({ route, navigation }) => {
                         {/* Price Column */}
                         <View style={styles.statItem}>
                             <Text style={styles.priceValueText}>
-                                {hotel.rate_per_night?.lowest || `LKR ${hotel.price?.toLocaleString()}`}
+                                {hotel.priceLKR
+                                    ? `Rs. ${hotel.priceLKR.toLocaleString()}`
+                                    : (hotel.rate_per_night?.lowest || (hotel.price ? `$ ${hotel.price?.toLocaleString()}` : "Price on request"))}
                             </Text>
-                            <Text style={styles.statLabel}>per night</Text>
+                            <Text style={styles.statLabel}>{hotel.price || hotel.rate_per_night?.lowest ? "per night" : "Availability"}</Text>
                         </View>
                     </View>
 
@@ -404,7 +467,7 @@ const HotelDetailsScreen = ({ route, navigation }) => {
                                         </View>
                                         <View style={styles.priceAmount}>
                                             <Text style={styles.priceSourceValue}>
-                                                {price.rate_per_night?.lowest}
+                                                {price.priceLKR ? `Rs. ${price.priceLKR.toLocaleString()}` : price.rate_per_night?.lowest}
                                             </Text>
                                             <Text style={styles.priceSourceUnit}>/night</Text>
                                         </View>
@@ -535,18 +598,62 @@ const HotelDetailsScreen = ({ route, navigation }) => {
                     {/* Location */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <MaterialIcons name="location-on" size={22} color="#2c5aa0" />
+                            <MaterialIcons name="location-pin" size={24} color="#2c5aa0" />
                             <Text style={styles.sectionTitle}>Location</Text>
+                            <TouchableOpacity onPress={handleOpenMap} style={{ marginLeft: "auto" }}>
+                                <Text style={styles.viewFullMapText}>View Full Map</Text>
+                            </TouchableOpacity>
                         </View>
-                        <TouchableOpacity style={styles.locationCard} onPress={handleOpenMap}>
-                            <View style={styles.locationInfo}>
-                                <Text style={styles.locationAddress}>{hotel.address || hotel.location}</Text>
-                                <Text style={styles.locationHint}>Tap to view on map</Text>
-                            </View>
-                            <View style={styles.locationMapIcon}>
-                                <MaterialCommunityIcons name="map-marker-radius" size={28} color="#2c5aa0" />
-                            </View>
-                        </TouchableOpacity>
+
+                        <View style={styles.mapContainer}>
+                            {hotel.gps_coordinates ? (
+                                <MapView
+                                    ref={mapRef}
+                                    style={styles.map}
+                                    provider={PROVIDER_GOOGLE}
+                                    initialRegion={{
+                                        latitude: hotel.gps_coordinates.latitude,
+                                        longitude: hotel.gps_coordinates.longitude,
+                                        latitudeDelta: 0.005,
+                                        longitudeDelta: 0.005,
+                                    }}
+                                    scrollEnabled={false}
+                                    zoomEnabled={false}
+                                    pitchEnabled={false}
+                                    rotateEnabled={false}
+                                    onPress={handleOpenMap}
+                                >
+                                    <Marker
+                                        coordinate={{
+                                            latitude: hotel.gps_coordinates.latitude,
+                                            longitude: hotel.gps_coordinates.longitude,
+                                        }}
+                                        title={hotel.name}
+                                        description={hotel.address || hotel.location}
+                                    />
+                                </MapView>
+                            ) : (
+                                <View style={styles.noMapPlaceholder}>
+                                    <MaterialIcons name="map" size={40} color="#ccc" />
+                                    <Text style={styles.noMapText}>Map location unavailable</Text>
+                                </View>
+                            )}
+
+                            {hotel.gps_coordinates && (
+                                <TouchableOpacity
+                                    style={styles.mapExpandButton}
+                                    onPress={handleOpenMap}
+                                    activeOpacity={0.8}
+                                >
+                                    <MaterialIcons name="open-in-full" size={20} color="#fff" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        <View style={styles.locationFooter}>
+                            <MaterialIcons name="place" size={16} color="#666" />
+                            <Text style={styles.locationFooterText}>{hotel.address || hotel.location}</Text>
+                        </View>
                     </View>
 
 
@@ -1091,37 +1198,59 @@ const styles = StyleSheet.create({
         color: "#666",
         fontWeight: "500",
     },
-    // Location
-    locationCard: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        backgroundColor: "#f8f9fa",
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: "#e9ecef",
-    },
-    locationInfo: {
-        flex: 1,
-    },
-    locationAddress: {
+    viewFullMapText: {
         fontSize: 14,
+        color: "#2c5aa0",
         fontWeight: "600",
-        color: "#333",
-        marginBottom: 4,
     },
-    locationHint: {
-        fontSize: 12,
-        color: "#888",
+    mapContainer: {
+        height: 200,
+        borderRadius: 20,
+        overflow: "hidden",
+        backgroundColor: "#f0f0f0",
+        borderWidth: 1,
+        borderColor: "rgba(0,0,0,0.05)",
+        marginTop: 5,
     },
-    locationMapIcon: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: "#e3f2fd",
+    map: {
+        width: "100%",
+        height: "100%",
+    },
+    mapExpandButton: {
+        position: "absolute",
+        bottom: 12,
+        right: 12,
+        backgroundColor: "#2c5aa0",
+        padding: 8,
+        borderRadius: 10,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 4,
+    },
+    noMapPlaceholder: {
+        flex: 1,
         justifyContent: "center",
         alignItems: "center",
+        gap: 10,
+    },
+    noMapText: {
+        color: "#999",
+        fontSize: 14,
+    },
+    locationFooter: {
+        flexDirection: "row",
+        alignItems: "center",
+        marginTop: 12,
+        paddingHorizontal: 4,
+        gap: 6,
+    },
+    locationFooterText: {
+        color: "#666",
+        fontSize: 13,
+        fontWeight: "500",
+        flex: 1,
     },
     // Contact
     contactButtons: {

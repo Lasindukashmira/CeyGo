@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ const PlaceCard = ({ item, onPress, getCategoryIcon, rank, navigation }) => {
   const isFocused = useIsFocused(); // Re-render triggers when screen comes into focus
 
   // Check status on mount AND focus
-  React.useEffect(() => {
+  useEffect(() => {
     if (user && item.id) {
       checkIsFavorite(user.uid, item.id).then(setIsFavorited);
     }

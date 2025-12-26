@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -25,7 +25,7 @@ import WeatherSection from "../Components/placeDetails/WeatherSection";
 import WeatherModal from "../Components/placeDetails/WeatherModal";
 import { RefreshControl } from "react-native";
 import { incrementViewCount, getPlaceDetails, getTopPlaceReview } from "../Services/PlacesService";
-import { useEffect } from "react";
+
 import { useAuth } from "../AuthContext";
 
 const { width, height } = Dimensions.get("window");

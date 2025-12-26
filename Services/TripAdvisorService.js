@@ -13,17 +13,46 @@ const getApiKey = () => {
 };
 
 // Cache keys
-const HOTELS_CACHE_KEY = 'cached_google_hotels';
+const HOTELS_CACHE_KEY = 'cached_google_hotels_v3';
 const RESTAURANTS_CACHE_KEY = 'cached_google_restaurants';
+const EXCHANGE_RATE_CACHE_KEY = 'cached_usd_lkr_rate';
 const CACHE_EXPIRY_SUFFIX = '_expiry';
 const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours
+const RATE_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours for currency rate
+
+/**
+ * Fetches current USD to LKR exchange rate with caching
+ */
+export const getExchangeRate = async () => {
+    try {
+        const cached = await AsyncStorage.getItem(EXCHANGE_RATE_CACHE_KEY);
+        const expiry = await AsyncStorage.getItem(EXCHANGE_RATE_CACHE_KEY + CACHE_EXPIRY_SUFFIX);
+
+        if (cached && expiry && Date.now() < parseInt(expiry)) {
+            return parseFloat(cached);
+        }
+
+        console.log('Fetching fresh exchange rate...');
+        const response = await axios.get('https://open.er-api.com/v6/latest/USD');
+        const rate = response.data?.rates?.LKR;
+
+        if (rate) {
+            await AsyncStorage.setItem(EXCHANGE_RATE_CACHE_KEY, rate.toString());
+            await AsyncStorage.setItem(EXCHANGE_RATE_CACHE_KEY + CACHE_EXPIRY_SUFFIX, (Date.now() + RATE_CACHE_DURATION).toString());
+            return rate;
+        }
+    } catch (error) {
+        console.warn('Error fetching exchange rate:', error);
+    }
+    return 300; // Realistic fallback for LKR
+};
 
 /**
  * Fetches top hotels from Google Hotels via SERPAPI
  * Uses: engine=google_hotels
  * Response: properties[] with rate_per_night, overall_rating, images, amenities
  */
-export const getTopHotels = async (location = 'Sri Lanka', forceRefresh = false) => {
+export const getTopHotels = async (location = 'best hotels in Sri Lanka', forceRefresh = false) => {
     // Check cache first
     if (!forceRefresh) {
         const cached = await getCachedData(HOTELS_CACHE_KEY);
@@ -41,7 +70,7 @@ export const getTopHotels = async (location = 'Sri Lanka', forceRefresh = false)
 
         // Calculate check-in/out dates (next week)
         const checkIn = new Date();
-        checkIn.setDate(checkIn.getDate() + 7);
+        checkIn.setDate(checkIn.getDate() + 14); // 2 weeks in future
         const checkOut = new Date(checkIn);
         checkOut.setDate(checkOut.getDate() + 2);
 
@@ -76,7 +105,7 @@ export const getTopHotels = async (location = 'Sri Lanka', forceRefresh = false)
             return getFallbackHotels();
         }
 
-        const hotels = parseGoogleHotelResults(data);
+        const hotels = await parseGoogleHotelResults(data);
 
         if (hotels.length > 0) {
             await setCachedData(HOTELS_CACHE_KEY, hotels);
@@ -154,17 +183,86 @@ export const getTopRestaurants = async (location = 'Sri Lanka', forceRefresh = f
 };
 
 /**
+ * Fetches full hotel details using property_token or direct serpapi link
+ */
+export const getHotelDetails = async (propertyToken, detailsLink = null, forceRefresh = false) => {
+    const CACHE_KEY = `hotel_detail_${propertyToken || detailsLink?.split('property_token=')[1]?.split('&')[0] || 'link_' + detailsLink?.length}`;
+
+    // Check cache
+    if (!forceRefresh) {
+        const cached = await getCachedData(CACHE_KEY);
+        if (cached) return cached;
+    }
+
+    try {
+        const apiKey = getApiKey();
+        if (!apiKey) return null;
+
+        console.log(`Fetching full details for hotel ${propertyToken ? 'token: ' + propertyToken : 'link: ' + detailsLink}...`);
+
+        const checkIn = new Date();
+        checkIn.setDate(checkIn.getDate() + 14);
+        const checkOut = new Date(checkIn);
+        checkOut.setDate(checkOut.getDate() + 2);
+        const formatDate = (date) => date.toISOString().split('T')[0];
+
+        const response = detailsLink
+            ? await axios.get(`${detailsLink}&api_key=${apiKey}`)
+            : await axios.get(BASE_URL, { params });
+        const data = response.data;
+
+        if (data.error) {
+            console.error('SERPAPI Detail Error:', data.error);
+            return null;
+        }
+
+        // The property details are usually in properties[0] when property_token is used
+        // or directly in the root object depending on how SERPAPI returns hotel details.
+        // For google_hotels with property_token, it usually returns a single property in an array or object.
+        const hotelDetail = data.property_results || data.properties?.[0] || data;
+
+        if (hotelDetail) {
+            // Apply price conversion to enriched details
+            const rate = await getExchangeRate();
+            if (hotelDetail.rate_per_night?.extracted_lowest) {
+                hotelDetail.priceLKR = Math.round(hotelDetail.rate_per_night.extracted_lowest * rate);
+            }
+
+            // Convert comparison prices if they exist
+            if (hotelDetail.prices && Array.isArray(hotelDetail.prices)) {
+                hotelDetail.prices = hotelDetail.prices.map(p => ({
+                    ...p,
+                    priceLKR: p.extracted_rate ? Math.round(p.extracted_rate * rate) : null
+                }));
+            }
+
+            await setCachedData(CACHE_KEY, hotelDetail);
+            return hotelDetail;
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error fetching hotel details:', error.message);
+        return null;
+    }
+};
+
+/**
  * Parse Google Hotels API response
  * properties[] contains: name, rate_per_night, overall_rating, reviews, images, hotel_class, amenities
  */
-const parseGoogleHotelResults = (data) => {
+const parseGoogleHotelResults = async (data) => {
     const properties = data.properties || [];
+    const exchangeRate = await getExchangeRate();
+    console.log('Using exchange rate:', exchangeRate);
+
+    console.log('Google Hotel Response:', JSON.stringify(properties[0], null, 2));
 
     console.log(`Parsing ${properties.length} Google Hotel results`);
 
     return properties.slice(0, 10).map((item, index) => {
         // Extract price - Google Hotels provides rate_per_night.extracted_lowest
-        let price = 25000; // Default LKR
+        let price = null;
         if (item.rate_per_night?.extracted_lowest) {
             price = Math.round(item.rate_per_night.extracted_lowest);
         } else if (item.rate_per_night?.lowest) {
@@ -184,18 +282,21 @@ const parseGoogleHotelResults = (data) => {
 
         return {
             id: item.property_token || `hotel_${index}`,
+            property_token: item.property_token,
+            serpapi_link: item.serpapi_property_details_link,
             name: item.name || 'Unknown Hotel',
             location: item.description || location || 'Sri Lanka',
             rating: item.overall_rating || 4.5,
             reviewCount: item.reviews || 0,
             price: price,
+            priceLKR: price ? Math.round(price * exchangeRate) : null,
             image: imageUrl,
             tags: extractHotelTags(item),
             amenities: amenityIcons,
             type: 'Hotel',
             link: item.link || null,
             hotelClass: item.extracted_hotel_class || null,
-            gpsCoordinates: item.gps_coordinates || null,
+            gps_coordinates: item.gps_coordinates || null,
         };
     });
 };
@@ -211,10 +312,10 @@ const parseGoogleMapsResults = (data) => {
 
     return results.slice(0, 10).map((item, index) => {
         // Extract price level ($-$$$$)
-        let price = 3500;
+        let price = 15; // Default USD level
         if (item.price) {
             const dollarCount = (item.price.match(/\$/g) || []).length;
-            price = dollarCount * 2000 + 1500;
+            price = dollarCount * 15 + 10;
         }
 
         return {
@@ -361,7 +462,7 @@ const getFallbackHotels = () => [
         id: 'fallback_h1',
         name: 'Cinnamon Grand Colombo',
         location: 'Colombo, Western Province',
-        price: 35000,
+        price: 180,
         rating: 4.8,
         image: 'https://www.cvent.com/venues/_next/image?url=https%3A%2F%2Fimages.cvent.com%2Fcsn%2Fbe1da351-c8fb-4ff4-b26d-1afa3bac6e17%2Fimages%2F55e2456e89cc413aa2ba16cca3123bb3_large!_!93422dbcfd6ff08924b489746fc72ead.jpg&w=3840&q=80',
         tags: ['5 Star', 'Luxury'],
@@ -372,7 +473,7 @@ const getFallbackHotels = () => [
         id: 'fallback_h2',
         name: 'Heritance Kandalama',
         location: 'Dambulla, Central Province',
-        price: 45000,
+        price: 220,
         rating: 4.9,
         image: 'https://exploresrilanka.lk/wp-content/uploads/2013/11/1-copy2-1.webp',
         tags: ['Eco-certified', 'Nature'],
@@ -383,7 +484,7 @@ const getFallbackHotels = () => [
         id: 'fallback_h3',
         name: 'Shangri-La Hambantota',
         location: 'Hambantota, Southern Province',
-        price: 52000,
+        price: 250,
         rating: 4.7,
         image: 'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/23/8f/bc/d4/shangri-la-hambantota.jpg?w=900&h=500&s=1',
         tags: ['5 Star', 'Resort'],
@@ -394,7 +495,7 @@ const getFallbackHotels = () => [
         id: 'fallback_h4',
         name: '98 Acres Resort & Spa',
         location: 'Ella, Uva Province',
-        price: 42000,
+        price: 210,
         rating: 4.9,
         image: 'https://cf.bstatic.com/xdata/images/hotel/max1024x768/123777522.jpg',
         tags: ['Boutique', 'Top Rated'],

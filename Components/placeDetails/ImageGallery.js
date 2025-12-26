@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 import FullScreenImageGalleryModal from "./FullScreenImageGalleryModal";

@@ -21,8 +21,7 @@ import {
   checkIsFavorite,
   togglePlaceFavorite
 } from "../Services/PlacesService";
-// API service kept for future use
-// import { getTopHotels, getTopRestaurants } from "../Services/TripAdvisorService";
+import { getTopHotels, getTopRestaurants } from "../Services/TripAdvisorService";
 import Header from "../Components/Header";
 import SectionHeader from "../Components/SectionHeader";
 import CategoryCard from "../Components/CategoryCard";
@@ -109,28 +108,27 @@ const HomeScreen = ({ navigation }) => {
 
   // Temporarily using dummy data for hotels/restaurants
   // Uncomment below and remove dummy data when API is ready
-  // const fetchHotelsAndRestaurants = async (force = false) => {
-  //   try {
-  //     const [hotelsData, restaurantsData] = await Promise.all([
-  //       getTopHotels('Sri Lanka', force),
-  //       getTopRestaurants('Sri Lanka', force),
-  //     ]);
-  //     if (hotelsData && hotelsData.length > 0) setHotels(hotelsData);
-  //     if (restaurantsData && restaurantsData.length > 0) setRestaurants(restaurantsData);
-  //   } catch (error) {
-  //     console.error('Error fetching hotels/restaurants:', error);
-  //   }
-  // };
+  const fetchHotelsOnly = async (force = false) => {
+    try {
+      const hotelsData = await getTopHotels('best hotels in Sri Lanka', force);
+      if (hotelsData && hotelsData.length > 0) setHotels(hotelsData);
+    } catch (error) {
+      console.error('Error fetching hotels:', error);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchPlaces(true);
+    await Promise.all([
+      fetchPlaces(true),
+      fetchHotelsOnly(true)
+    ]);
     setRefreshing(false);
   };
 
   useEffect(() => {
     fetchPlaces();
-    // fetchHotelsAndRestaurants(); // Commented out - using dummy data
+    fetchHotelsOnly();
 
     // Animations
     Animated.parallel([
@@ -419,7 +417,7 @@ const HomeScreen = ({ navigation }) => {
             onSeeAllPress={() => console.log("See all hotels")}
           />
           <FlatList
-            data={topHotels}
+            data={hotels.length > 0 ? hotels : topHotels}
             renderItem={renderHotelCard}
             keyExtractor={(item) => item.id}
             horizontal

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import { MaterialIcons } from "@expo/vector-icons";
 import ReviewsModal from "./ReviewsModal";
 
 import { addPlaceReview, getUserReview } from "../Services/PlacesService";
-import { useEffect } from "react";
 
 const ReviewsSection = ({ placeId, userId, ratingStats, avgRating, reviewCount, onReviewUpdate, topReview }) => {
   const [modalVisible, setModalVisible] = useState(false);
