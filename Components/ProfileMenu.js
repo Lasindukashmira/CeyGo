@@ -55,7 +55,10 @@ const ProfileMenu = ({ visible, onClose, onLogout, navigation }) => {
             title: "My Profile",
             icon: "person-outline",
             iconLib: MaterialIcons,
-            action: () => console.log("Profile pressed"),
+            action: () => {
+                onClose();
+                navigation.navigate("Profile");
+            },
         },
         {
             id: "settings",
