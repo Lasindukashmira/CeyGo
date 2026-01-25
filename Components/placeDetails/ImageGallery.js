@@ -7,18 +7,35 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { checkIsFavorite, togglePlaceFavorite } from "../../Services/PlacesService";
 
 import FullScreenImageGalleryModal from "./FullScreenImageGalleryModal";
 const { width, height } = Dimensions.get("window");
 
-const ImageGallery = ({ placeImages, navigation }) => {
+const ImageGallery = ({ placeImages, navigation, placeId, userId }) => {
   const flatListRef = useRef(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFavorited, setIsFavorited] = useState(false);
   const [isGalleryVisible, setIsGalleryVisible] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [loadingFavorite, setLoadingFavorite] = useState(false);
+
+  // Check if place is favorited on mount
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (userId && placeId) {
+        try {
+          const favStatus = await checkIsFavorite(userId, placeId);
+          setIsFavorited(favStatus);
+        } catch (error) {
+          console.error("Error checking favorite status:", error);
+        }
+      }
+    };
+    checkFavoriteStatus();
+  }, [userId, placeId]);
 
   const renderImageCarousel = ({ item, index }) => (
     <TouchableOpacity
@@ -63,9 +80,28 @@ const ImageGallery = ({ placeImages, navigation }) => {
     navigation.goBack();
   };
 
-  const handleFavoritePress = () => {
+  const handleFavoritePress = async () => {
+    if (!userId || !placeId || loadingFavorite) {
+      console.log("Cannot toggle favorite - missing user or place ID");
+      return;
+    }
+
+    setLoadingFavorite(true);
+    const oldState = isFavorited;
+
+    // Optimistic update
     setIsFavorited(!isFavorited);
-    console.log(`${isFavorited ? "Removed from" : "Added to"} favorites:`);
+
+    try {
+      await togglePlaceFavorite(userId, placeId, oldState);
+      console.log(`${oldState ? "Removed from" : "Added to"} favorites: ${placeId}`);
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      // Revert on error
+      setIsFavorited(oldState);
+    } finally {
+      setLoadingFavorite(false);
+    }
   };
 
   const scrollToImage = (index) => {

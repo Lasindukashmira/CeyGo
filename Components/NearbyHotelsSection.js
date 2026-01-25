@@ -5,81 +5,171 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import React, { useState } from "react";
-import { MaterialIcons, FontAwesome } from "@expo/vector-icons";
+import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
-const NearbyHotelsSection = () => {
-  const [hotels, setHotels] = useState([
-    {
-      id: 1,
-      name: "Luxury Resort & Spa",
-      distance: 1.2,
-      rating: 4.7,
-      reviews: 230,
-      price: 185,
-      image: require("../assets/districpics/ampara.jpg"),
-      amenities: ["wifi", "pool", "restaurant", "spa"],
-      topRated: true,
-      favorite: false,
-    },
-    {
-      id: 2,
-      name: "Heritage Boutique Hotel",
-      distance: 0.8,
-      rating: 4.5,
-      reviews: 120,
-      price: 120,
-      image: require("../assets/cpic/Beach.jpg"),
-      amenities: ["wifi", "breakfast", "garden", "bar"],
-      topRated: false,
-      favorite: false,
-    },
-    {
-      id: 3,
-      name: "Eco Lodge Retreat",
-      distance: 2.5,
-      rating: 4.3,
-      reviews: 80,
-      price: 95,
-      image: require("../assets/cpic/Beach.jpg"),
-      amenities: ["wifi", "parking", "nature", "biking"],
-      topRated: false,
-      favorite: false,
-    },
-    {
-      id: 4,
-      name: "Beachfront Paradise",
-      distance: 3.1,
-      rating: 4.8,
-      reviews: 300,
-      price: 210,
-      image: require("../assets/cpic/Beach.jpg"),
-      amenities: ["beach", "pool", "spa", "bar"],
-      topRated: true,
-      favorite: false,
-    },
-  ]);
+const NearbyHotelsSection = ({ hotels = [], loading = false, navigation, onHotelPress }) => {
+  const [favoriteIds, setFavoriteIds] = useState([]);
 
   const handleHotelPress = (hotel) => {
-    console.log("Hotel pressed:", hotel.name);
+    if (onHotelPress) {
+      onHotelPress(hotel);
+    } else if (navigation) {
+      navigation.navigate("HotelDetails", { hotel });
+    } else {
+      console.log("Hotel pressed:", hotel.name);
+    }
   };
 
-  // Toggle favorite status
   const toggleFavorite = (id) => {
-    setHotels((prevHotels) =>
-      prevHotels.map((hotel) =>
-        hotel.id === id ? { ...hotel, favorite: !hotel.favorite } : hotel
-      )
+    setFavoriteIds((prev) =>
+      prev.includes(id) ? prev.filter((fid) => fid !== id) : [...prev, id]
+    );
+  };
+
+  const getAmenityIcon = (amenity) => {
+    const amenityLower = amenity?.toLowerCase() || '';
+    const icons = {
+      wifi: "wifi",
+      pool: "pool",
+      restaurant: "silverware-fork-knife",
+      spa: "spa",
+      breakfast: "coffee",
+      bar: "glass-cocktail",
+      parking: "car",
+      beach: "beach",
+      nature: "tree",
+      biking: "bike",
+      garden: "flower",
+    };
+    // Check if amenity contains any of the keys
+    for (const [key, icon] of Object.entries(icons)) {
+      if (amenityLower.includes(key)) return icon;
+    }
+    return "check-circle";
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', height: 200 }]}>
+        <ActivityIndicator size="large" color="#2c5aa0" />
+      </View>
+    );
+  }
+
+  const renderHotelCard = ({ item }) => {
+    const isFav = favoriteIds.includes(item.id);
+
+    return (
+      <TouchableOpacity
+        style={styles.hotelCard}
+        onPress={() => handleHotelPress(item)}
+        activeOpacity={0.95}
+      >
+        {/* Image Container */}
+        <View style={styles.imageContainer}>
+          <Image
+            source={typeof item.image === 'string' ? { uri: item.image } : item.image}
+            style={styles.hotelImage}
+          />
+
+          {/* Gradient Overlay */}
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.7)"]}
+            style={styles.imageGradient}
+          />
+
+          {/* Top Badges Row */}
+          <View style={styles.topBadgesRow}>
+            {item.topRated && (
+              <View style={styles.topRatedBadge}>
+                <MaterialIcons name="verified" size={12} color="#fff" />
+                <Text style={styles.topRatedText}>Top Rated</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Favorite Button */}
+          <TouchableOpacity
+            style={styles.favoriteBtn}
+            onPress={() => toggleFavorite(item.id)}
+          >
+            <MaterialIcons
+              name={isFav ? "favorite" : "favorite-border"}
+              size={20}
+              color={isFav ? "#e53935" : "#fff"}
+            />
+          </TouchableOpacity>
+
+          {/* Bottom Info on Image */}
+          <View style={styles.imageBottomInfo}>
+            <View style={styles.ratingPill}>
+              <MaterialIcons name="star" size={14} color="#FFD700" />
+              <Text style={styles.ratingText}>{item.rating}</Text>
+              <Text style={styles.reviewsText}>({item.reviews})</Text>
+            </View>
+            <View style={styles.distancePill}>
+              <MaterialIcons name="near-me" size={12} color="#2c5aa0" />
+              <Text style={styles.distanceText}>{item.distance || '0.5'} km</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Content Container */}
+        <View style={styles.contentContainer}>
+          <Text style={styles.hotelName} numberOfLines={1}>
+            {item.name}
+          </Text>
+
+          {/* Amenities Row */}
+          <View style={styles.amenitiesRow}>
+            {(item.amenities || []).slice(0, 4).map((amenity, index) => (
+              <View key={index} style={styles.amenityChip}>
+                <MaterialCommunityIcons
+                  name={getAmenityIcon(amenity)}
+                  size={14}
+                  color="#2c5aa0"
+                />
+              </View>
+            ))}
+            {(item.amenities || []).length > 4 && (
+              <View style={styles.moreAmenitiesChip}>
+                <Text style={styles.moreAmenitiesText}>+{(item.amenities || []).length - 4}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Price Row */}
+          <View style={styles.priceRow}>
+            <View style={styles.priceContainer}>
+              <Text style={styles.priceValue}>
+                {item.priceLKR ? `Rs ${item.priceLKR.toLocaleString()}` : `$${item.price}`}
+              </Text>
+              <Text style={styles.priceUnit}>/night</Text>
+            </View>
+            <TouchableOpacity style={styles.viewBtn}>
+              <Text style={styles.viewBtnText}>View</Text>
+              <MaterialIcons name="arrow-forward" size={14} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.hotelsSection}>
+    <View style={styles.container}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Nearby Hotels</Text>
-        <TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <MaterialCommunityIcons name="home-city" size={22} color="#2c5aa0" />
+          <Text style={styles.sectionTitle}>Nearby Hotels</Text>
+        </View>
+        <TouchableOpacity style={styles.viewAllBtn}>
           <Text style={styles.viewAllText}>View All</Text>
+          <MaterialIcons name="chevron-right" size={18} color="#2c5aa0" />
         </TouchableOpacity>
       </View>
 
@@ -88,165 +178,59 @@ const NearbyHotelsSection = () => {
         horizontal
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.hotelCard}
-            onPress={() => handleHotelPress(item)}
-            activeOpacity={0.9}
-          >
-            <View style={styles.hotelImageContainer}>
-              <Image
-                source={item.image}
-                style={styles.hotelImage}
-                defaultSource={require("../assets/cpic/Beach.jpg")}
-              />
-
-              {item.topRated && (
-                <View style={styles.topRatedBadge}>
-                  <Text style={styles.topRatedText}>Top Rated</Text>
-                </View>
-              )}
-
-              {/* Favorite Button at Bottom Left */}
-              <TouchableOpacity
-                style={styles.favoriteButton}
-                onPress={() => toggleFavorite(item.id)}
-              >
-                <FontAwesome
-                  name={item.favorite ? "heart" : "heart-o"}
-                  size={20}
-                  color={item.favorite ? "red" : "#fff"}
-                />
-              </TouchableOpacity>
-
-              {/* Rating */}
-              <View style={styles.hotelRating}>
-                <MaterialIcons name="star" size={14} color="#FFD700" />
-                <Text style={styles.hotelRatingText}>{item.rating}</Text>
-                <Text style={styles.hotelReviews}>({item.reviews})</Text>
-              </View>
-
-              {/* Distance */}
-              <View style={styles.distanceBadge}>
-                <MaterialIcons name="place" size={12} color="#333" />
-                <Text style={styles.distanceText}>{item.distance} km</Text>
-              </View>
-            </View>
-
-            <View style={styles.hotelDetails}>
-              <Text style={styles.hotelName} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <View style={styles.amenitiesRow}>
-                {item.amenities.slice(0, 3).map((amenity, index) => {
-                  let iconName;
-                  switch (amenity) {
-                    case "wifi":
-                      iconName = "wifi";
-                      break;
-                    case "pool":
-                      iconName = "pool";
-                      break;
-                    case "restaurant":
-                      iconName = "restaurant";
-                      break;
-                    case "spa":
-                      iconName = "spa";
-                      break;
-                    case "breakfast":
-                      iconName = "free-breakfast";
-                      break;
-                    case "bar":
-                      iconName = "local-bar";
-                      break;
-                    case "parking":
-                      iconName = "local-parking";
-                      break;
-                    case "beach":
-                      iconName = "beach-access";
-                      break;
-                    case "nature":
-                      iconName = "nature-people";
-                      break;
-                    case "biking":
-                      iconName = "directions-bike";
-                      break;
-                    case "garden":
-                      iconName = "local-florist";
-                      break;
-                    default:
-                      iconName = "check";
-                  }
-                  return (
-                    <MaterialIcons
-                      key={index}
-                      name={iconName}
-                      size={16}
-                      color="#2c5aa0"
-                      style={{ marginRight: 6 }}
-                    />
-                  );
-                })}
-                {item.amenities.length > 3 && (
-                  <Text style={styles.moreAmenities}>
-                    +{item.amenities.length - 3}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.priceContainer}>
-                <Text style={styles.priceText}>${item.price}</Text>
-                <Text style={styles.nightText}>/night</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        )}
-        contentContainerStyle={styles.hotelsList}
+        renderItem={renderHotelCard}
+        contentContainerStyle={styles.listContainer}
       />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  hotelsSection: {
-    marginBottom: 25,
+  container: {
+    marginBottom: 28,
   },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 15,
-    paddingHorizontal: 5,
+    marginBottom: 16,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 19,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  viewAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   viewAllText: {
     fontSize: 14,
     color: "#2c5aa0",
     fontWeight: "600",
   },
-  hotelsList: {
-    paddingLeft: 5,
-    paddingBottom: 10,
+  listContainer: {
+    paddingRight: 20,
   },
   hotelCard: {
-    width: 280,
+    width: 240,
     backgroundColor: "#fff",
-    borderRadius: 15,
-    marginRight: 15,
+    borderRadius: 20,
+    marginRight: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  hotelImageContainer: {
-    height: 150,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
     overflow: "hidden",
+  },
+  imageContainer: {
+    height: 140,
     position: "relative",
   },
   hotelImage: {
@@ -254,102 +238,154 @@ const styles = StyleSheet.create({
     height: "100%",
     resizeMode: "cover",
   },
-  hotelRating: {
+  imageGradient: {
     position: "absolute",
-    top: 10,
-    left: 10,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+  },
+  topBadgesRow: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+  },
+  topRatedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: "#2c5aa0",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 4,
   },
-  hotelRatingText: {
+  topRatedText: {
     color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-    marginLeft: 4,
+    fontSize: 11,
+    fontWeight: "700",
   },
-  hotelReviews: {
-    color: "#fff",
-    fontSize: 10,
-    marginLeft: 4,
+  favoriteBtn: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
-  distanceBadge: {
+  imageBottomInfo: {
     position: "absolute",
     bottom: 10,
-    right: 10,
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  ratingPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+    gap: 4,
+  },
+  ratingText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  reviewsText: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 11,
+  },
+  distancePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+    gap: 4,
   },
   distanceText: {
+    color: "#1a1a1a",
     fontSize: 12,
-    color: "#333",
     fontWeight: "600",
-    marginLeft: 3,
   },
-  hotelDetails: {
-    padding: 15,
+  contentContainer: {
+    padding: 14,
   },
   hotelName: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: "700",
+    color: "#1a1a1a",
     marginBottom: 10,
   },
   amenitiesRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 15,
+    marginBottom: 12,
+    gap: 6,
   },
-  moreAmenities: {
-    fontSize: 12,
-    color: "#2c5aa0",
+  amenityChip: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#f0f7ff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  moreAmenitiesChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: "#e9ecef",
+  },
+  moreAmenitiesText: {
+    fontSize: 11,
     fontWeight: "600",
+    color: "#666",
+  },
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   priceContainer: {
     flexDirection: "row",
     alignItems: "baseline",
   },
-  priceText: {
+  priceValue: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: "#2c5aa0",
   },
-  nightText: {
+  priceUnit: {
     fontSize: 12,
-    color: "#666",
-    marginLeft: 4,
+    color: "#888",
+    marginLeft: 2,
   },
-  topRatedBadge: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "#2c5aa0",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  topRatedText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "600",
-  },
-  favoriteButton: {
-    position: "absolute",
-    bottom: 10,
-    left: 10,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    width: 35,
-    height: 35,
-    borderRadius: 50,
-    justifyContent: "center",
+  viewBtn: {
+    flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#2c5aa0",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+  },
+  viewBtnText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
 

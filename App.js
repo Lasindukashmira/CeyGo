@@ -11,6 +11,19 @@ import DistrictDetailsScreen from "./Screens/DistrictDetailsScreen";
 import HotelDetailsScreen from "./Screens/HotelDetailsScreen";
 import RestaurantDetailsScreen from "./Screens/RestaurantDetailsScreen";
 import ProfileScreen from "./Screens/ProfileScreen";
+import FavouritesScreen from "./Screens/FavouritesScreen";
+
+// Service Provider Screens
+import ProviderIntroScreen from "./Screens/ServiceProvider/ProviderIntroScreen";
+import ProviderRegistrationScreen from "./Screens/ServiceProvider/ProviderRegistrationScreen";
+import ProviderDashboardScreen from "./Screens/ServiceProvider/ProviderDashboardScreen";
+import ServiceTypeSelectionScreen from "./Screens/ServiceProvider/ServiceTypeSelectionScreen";
+import AddTourScreen from "./Screens/ServiceProvider/AddTourScreen";
+import AddHotelScreen from "./Screens/ServiceProvider/AddHotelScreen";
+import AddRestaurantScreen from "./Screens/ServiceProvider/AddRestaurantScreen";
+import AddAttractionScreen from "./Screens/ServiceProvider/AddAttractionScreen";
+import EditServiceScreen from "./Screens/ServiceProvider/EditServiceScreen";
+
 import { AuthProvider, useAuth } from "./AuthContext";
 
 import { StyleSheet, View } from "react-native";
@@ -68,6 +81,52 @@ function Root() {
             options={{
               headerShown: false,
             }}
+          />
+          {/* Service Provider Screens */}
+          <Stack.Screen
+            name="ProviderIntro"
+            component={ProviderIntroScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="ProviderRegistration"
+            component={ProviderRegistrationScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="ServiceTypeSelection"
+            component={ServiceTypeSelectionScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="AddTour"
+            component={AddTourScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="AddHotel"
+            component={AddHotelScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="AddRestaurant"
+            component={AddRestaurantScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="AddAttraction"
+            component={AddAttractionScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="EditService"
+            component={EditServiceScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Favourites"
+            component={FavouritesScreen}
+            options={{ headerShown: false }}
           />
         </Stack.Navigator>
       ) : (

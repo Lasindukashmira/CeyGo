@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-const Header = ({ onProfilePress, onNotificationPress, userName = "Traveler" }) => {
+const Header = ({ onProfilePress, onNotificationPress, userName = "Traveler", profilePicture, initials }) => {
   // Get dynamic greeting based on time
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -38,7 +38,13 @@ const Header = ({ onProfilePress, onNotificationPress, userName = "Traveler" }) 
         {/* Profile Button */}
         <TouchableOpacity style={styles.profileButton} onPress={onProfilePress}>
           <View style={styles.profileIcon}>
-            <MaterialIcons name="person" size={22} color="#fff" />
+            {profilePicture ? (
+              <Image source={{ uri: profilePicture }} style={styles.profileImage} />
+            ) : initials ? (
+              <Text style={styles.initialsText}>{initials}</Text>
+            ) : (
+              <MaterialIcons name="person" size={22} color="#fff" />
+            )}
           </View>
         </TouchableOpacity>
       </View>
@@ -124,6 +130,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 5,
+    overflow: "hidden", // Important for iOS with full-size Image
+  },
+  profileImage: {
+    width: "100%",
+    height: "100%",
+  },
+  initialsText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

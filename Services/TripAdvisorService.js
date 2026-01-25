@@ -122,6 +122,70 @@ export const getTopHotels = async (location = 'best hotels in Sri Lanka', forceR
 };
 
 /**
+ * Fetches nearby hotels for a specific place/location
+ * Uses place name + district for more relevant results
+ */
+export const getNearbyHotels = async (placeName, district = 'Sri Lanka', forceRefresh = false) => {
+    const NEARBY_CACHE_KEY = `nearby_hotels_${placeName.replace(/\s/g, '_')}`;
+
+    // Check cache first
+    if (!forceRefresh) {
+        const cached = await getCachedData(NEARBY_CACHE_KEY);
+        if (cached) return cached;
+    }
+
+    try {
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            console.log('No API key, using fallback hotels');
+            return getFallbackNearbyHotels();
+        }
+
+        console.log(`Fetching nearby hotels for ${placeName}, ${district}...`);
+
+        // Calculate check-in/out dates
+        const checkIn = new Date();
+        checkIn.setDate(checkIn.getDate() + 14);
+        const checkOut = new Date(checkIn);
+        checkOut.setDate(checkOut.getDate() + 2);
+        const formatDate = (date) => date.toISOString().split('T')[0];
+
+        const params = {
+            engine: 'google_hotels',
+            q: `hotels near ${placeName} ${district}`,
+            check_in_date: formatDate(checkIn),
+            check_out_date: formatDate(checkOut),
+            adults: 2,
+            currency: 'USD',
+            gl: 'us',
+            hl: 'en',
+            api_key: apiKey,
+        };
+
+        const response = await axios.get(BASE_URL, { params });
+        const data = response.data;
+
+        if (data.error) {
+            console.error('SERPAPI Error:', data.error);
+            return getFallbackNearbyHotels();
+        }
+
+        const hotels = await parseGoogleHotelResults(data);
+
+        // Only cache if we got results and limit to 6 nearby hotels
+        const nearbyHotels = hotels.slice(0, 6);
+        if (nearbyHotels.length > 0) {
+            await setCachedData(NEARBY_CACHE_KEY, nearbyHotels);
+        }
+
+        return nearbyHotels.length > 0 ? nearbyHotels : getFallbackNearbyHotels();
+    } catch (error) {
+        console.error('Error fetching nearby hotels:', error.message);
+        return getFallbackNearbyHotels();
+    }
+};
+
+/**
  * Fetches top restaurants from Google Maps via SERPAPI
  * Uses: engine=google_maps (Local Results)
  */
@@ -285,7 +349,7 @@ const parseGoogleHotelResults = async (data) => {
             property_token: item.property_token,
             serpapi_link: item.serpapi_property_details_link,
             name: item.name || 'Unknown Hotel',
-            location: item.description || location || 'Sri Lanka',
+            location: item.description || 'Sri Lanka',
             rating: item.overall_rating || 4.5,
             reviewCount: item.reviews || 0,
             price: price,
@@ -511,6 +575,42 @@ const getFallbackHotels = () => [
         image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=400',
         tags: ['Beachfront', 'Heritage'],
         amenities: ['wifi', 'pool', 'beach', 'spa'],
+        type: 'Hotel',
+    },
+];
+
+const getFallbackNearbyHotels = () => [
+    {
+        id: 'nearby_fallback_1',
+        name: 'Nearby Resort & Spa',
+        location: 'Sri Lanka',
+        price: 120,
+        rating: 4.5,
+        image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
+        tags: ['Resort'],
+        amenities: ['wifi', 'pool', 'restaurant'],
+        type: 'Hotel',
+    },
+    {
+        id: 'nearby_fallback_2',
+        name: 'Heritage Boutique Inn',
+        location: 'Sri Lanka',
+        price: 85,
+        rating: 4.3,
+        image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=400',
+        tags: ['Boutique'],
+        amenities: ['wifi', 'breakfast'],
+        type: 'Hotel',
+    },
+    {
+        id: 'nearby_fallback_3',
+        name: 'Eco Lodge Retreat',
+        location: 'Sri Lanka',
+        price: 95,
+        rating: 4.4,
+        image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400',
+        tags: ['Eco-Friendly'],
+        amenities: ['wifi', 'nature', 'spa'],
         type: 'Hotel',
     },
 ];

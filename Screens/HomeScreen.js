@@ -108,6 +108,12 @@ const HomeScreen = ({ navigation }) => {
 
   // Temporarily using dummy data for hotels/restaurants
   // Uncomment below and remove dummy data when API is ready
+  const getInitials = () => {
+    const first = user?.firstName?.[0] || "";
+    const last = user?.lastName?.[0] || "";
+    return (first + last).toUpperCase() || "U";
+  };
+
   const fetchHotelsOnly = async (force = false) => {
     try {
       const hotelsData = await getTopHotels('best hotels in Sri Lanka', force);
@@ -263,6 +269,8 @@ const HomeScreen = ({ navigation }) => {
           onProfilePress={handleProfilePress}
           onNotificationPress={handleNotificationPress}
           userName={user?.firstName}
+          profilePicture={user?.profilePicture}
+          initials={getInitials()}
         />
 
         {/* Search Bar */}

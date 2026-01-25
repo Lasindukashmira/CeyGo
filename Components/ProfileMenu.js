@@ -10,10 +10,14 @@ import {
     TouchableWithoutFeedback,
 } from "react-native";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useAuth } from "../AuthContext";
 
 const { height } = Dimensions.get("window");
 
 const ProfileMenu = ({ visible, onClose, onLogout, navigation }) => {
+    const { user } = useAuth();
+    const isProvider = user?.role === "service_provider";
+
     const slideAnim = useRef(new Animated.Value(height)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -49,6 +53,7 @@ const ProfileMenu = ({ visible, onClose, onLogout, navigation }) => {
 
     if (!visible) return null;
 
+    // Build menu items dynamically based on user role
     const menuItems = [
         {
             id: "profile",
@@ -60,6 +65,17 @@ const ProfileMenu = ({ visible, onClose, onLogout, navigation }) => {
                 navigation.navigate("Profile");
             },
         },
+        // Favourites - only shown for service providers (since tourists have it in tab bar)
+        ...(isProvider ? [{
+            id: "favourites",
+            title: "My Favourites",
+            icon: "heart-outline",
+            iconLib: MaterialCommunityIcons,
+            action: () => {
+                onClose();
+                navigation.navigate("Favourites");
+            },
+        }] : []),
         {
             id: "settings",
             title: "Settings",
@@ -67,14 +83,18 @@ const ProfileMenu = ({ visible, onClose, onLogout, navigation }) => {
             iconLib: MaterialIcons,
             action: () => console.log("Settings pressed"),
         },
-        {
+        // Provide a Service - only for non-providers
+        ...(!isProvider ? [{
             id: "service",
             title: "Provide a Service",
             icon: "briefcase-outline",
             iconLib: MaterialCommunityIcons,
-            action: () => console.log("Provide Service pressed"),
+            action: () => {
+                onClose();
+                navigation.navigate("ProviderIntro");
+            },
             highlight: true,
-        },
+        }] : []),
         {
             id: "logout",
             title: "Logout",

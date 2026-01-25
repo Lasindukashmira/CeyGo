@@ -12,6 +12,7 @@ import {
     Switch,
     Alert,
     Image,
+    ActivityIndicator,
 } from "react-native";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,13 +20,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../AuthContext";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
+import * as ImagePicker from "expo-image-picker";
+import { uploadToCloudinary } from "../Services/CloudinaryService";
 
 const { width } = Dimensions.get("window");
 
 const ProfileScreen = ({ navigation }) => {
-    const { user, logout } = useAuth();
+    const { user, logout, refreshUser } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     // Editable user data
     const [formData, setFormData] = useState({
@@ -68,6 +72,7 @@ const ProfileScreen = ({ navigation }) => {
                 lastName: formData.lastName,
                 phone: formData.phone,
             });
+            await refreshUser();
             setIsEditing(false);
             Alert.alert("Success", "Profile updated successfully!");
         } catch (error) {
@@ -75,6 +80,45 @@ const ProfileScreen = ({ navigation }) => {
             console.error("Error updating profile:", error);
         }
         setSaving(false);
+    };
+
+    const handlePickImage = async () => {
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert("Permission Required", "Sorry, we need camera roll permissions to make this work!");
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+            });
+
+            if (!result.canceled) {
+                setUploadingImage(true);
+                try {
+                    const imageUrl = await uploadToCloudinary(result.assets[0].uri);
+                    if (imageUrl) {
+                        await updateDoc(doc(db, "users", user.uid), {
+                            profilePicture: imageUrl,
+                            updatedAt: new Date(),
+                        });
+                        await refreshUser();
+                        Alert.alert("Success", "Profile picture updated successfully!");
+                    }
+                } catch (error) {
+                    Alert.alert("Upload Error", "Failed to upload image. Please try again.");
+                    console.error("Image upload error:", error);
+                } finally {
+                    setUploadingImage(false);
+                }
+            }
+        } catch (error) {
+            console.error("Pick image error:", error);
+        }
     };
 
     const handleLogout = () => {
@@ -144,9 +188,15 @@ const ProfileScreen = ({ navigation }) => {
                     <View style={styles.avatarSection}>
                         <View style={styles.avatarContainer}>
                             <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{getInitials()}</Text>
+                                {uploadingImage ? (
+                                    <ActivityIndicator size="large" color="#2c5aa0" />
+                                ) : user?.profilePicture ? (
+                                    <Image source={{ uri: user.profilePicture }} style={styles.profileImage} />
+                                ) : (
+                                    <Text style={styles.avatarText}>{getInitials()}</Text>
+                                )}
                             </View>
-                            <TouchableOpacity style={styles.cameraBtn}>
+                            <TouchableOpacity style={styles.cameraBtn} onPress={handlePickImage} disabled={uploadingImage}>
                                 <MaterialIcons name="camera-alt" size={16} color="#fff" />
                             </TouchableOpacity>
                         </View>
@@ -162,6 +212,20 @@ const ProfileScreen = ({ navigation }) => {
                         <Text style={styles.memberSince}>
                             Member since {formatDate(user?.createdAt)}
                         </Text>
+                        {/* User Role Badge */}
+                        <View style={styles.roleBadge}>
+                            <MaterialCommunityIcons
+                                name={user?.role === 'service_provider' ? 'briefcase-account' : 'account-circle'}
+                                size={14}
+                                color={user?.role === 'service_provider' ? '#FF9800' : '#4CAF50'}
+                            />
+                            <Text style={[
+                                styles.roleText,
+                                user?.role === 'service_provider' && styles.serviceProviderText
+                            ]}>
+                                {user?.role === 'service_provider' ? 'Service Provider' : 'Tourist'}
+                            </Text>
+                        </View>
                     </View>
                 </SafeAreaView>
             </LinearGradient>
@@ -453,6 +517,24 @@ const styles = StyleSheet.create({
         color: "rgba(255,255,255,0.6)",
         marginTop: 5,
     },
+    roleBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "rgba(255,255,255,0.2)",
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        marginTop: 10,
+        gap: 6,
+    },
+    roleText: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: "#4CAF50",
+    },
+    serviceProviderText: {
+        color: "#FF9800",
+    },
     scrollView: {
         flex: 1,
         marginTop: -20,
@@ -620,6 +702,11 @@ const styles = StyleSheet.create({
         color: "#999",
         fontSize: 12,
         marginTop: 30,
+    },
+    profileImage: {
+        width: "100%",
+        height: "100%",
+        borderRadius: 50,
     },
 });
 

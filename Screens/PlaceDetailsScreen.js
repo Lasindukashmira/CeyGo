@@ -25,6 +25,8 @@ import WeatherSection from "../Components/placeDetails/WeatherSection";
 import WeatherModal from "../Components/placeDetails/WeatherModal";
 import { RefreshControl } from "react-native";
 import { incrementViewCount, getPlaceDetails, getTopPlaceReview } from "../Services/PlacesService";
+import { getWeatherData } from "../Services/WeatherService";
+import { getNearbyHotels } from "../Services/TripAdvisorService";
 
 import { useAuth } from "../AuthContext";
 
@@ -46,6 +48,14 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
   );
 
   const [refreshing, setRefreshing] = useState(false);
+
+  // Weather state - real API data
+  const [weatherData, setWeatherData] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+
+  // Nearby Hotels state - real API data
+  const [nearbyHotels, setNearbyHotels] = useState([]);
+  const [hotelsLoading, setHotelsLoading] = useState(true);
 
   const fetchPlaceData = async () => {
     if (place.id) {
@@ -82,7 +92,40 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
       // Fetch fresh details immediately to ensure stats are up to date
       fetchPlaceData();
     }
+
+    // Fetch real weather data
+    fetchWeatherData();
+
+    // Fetch nearby hotels
+    fetchNearbyHotels();
   }, []);
+
+  const fetchNearbyHotels = async () => {
+    setHotelsLoading(true);
+    try {
+      // Use place name and district for search
+      const district = place.geolocation?.district || 'Sri Lanka';
+      const hotels = await getNearbyHotels(place.name, district);
+      setNearbyHotels(hotels);
+    } catch (error) {
+      console.error('Error fetching hotels:', error);
+    }
+    setHotelsLoading(false);
+  };
+
+  const fetchWeatherData = async () => {
+    setWeatherLoading(true);
+    try {
+      // Use place coordinates if available
+      const lat = place.geolocation?.latitude || 7.8731;
+      const lon = place.geolocation?.longitude || 80.7718;
+      const weather = await getWeatherData(lat, lon, place.name);
+      setWeatherData(weather);
+    } catch (error) {
+      console.error('Error fetching weather:', error);
+    }
+    setWeatherLoading(false);
+  };
 
   // Use the actual image list from place data
   const placeImages =
@@ -90,31 +133,27 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
       ? place.image_urls
       : [place.image_urls?.[0] || require("../assets/cpic/History.jpg")];
 
-  // Static weather data (will be replaced with API call later)
-  const weatherData = {
+  // Fallback weather data if API fails or loading
+  const defaultWeatherData = {
     current: {
       temperature: 28,
       condition: "Sunny",
       icon: "☀️",
       humidity: 65,
       windSpeed: 12,
-      uvIndex: 8,
+      uvIndex: "High",
       feelsLike: 32,
     },
     forecast: [
       { day: "Today", high: 32, low: 24, condition: "Sunny", icon: "☀️" },
-      {
-        day: "Tomorrow",
-        high: 30,
-        low: 23,
-        condition: "Partly Cloudy",
-        icon: "⛅",
-      },
+      { day: "Tomorrow", high: 30, low: 23, condition: "Partly Cloudy", icon: "⛅" },
       { day: "Wednesday", high: 29, low: 22, condition: "Rainy", icon: "🌧️" },
       { day: "Thursday", high: 31, low: 25, condition: "Sunny", icon: "☀️" },
       { day: "Friday", high: 33, low: 26, condition: "Hot", icon: "🌡️" },
     ],
   };
+
+  const displayWeather = weatherData || defaultWeatherData;
 
   const openWeatherModal = () => {
     setIsWeatherVisible(true);
@@ -160,7 +199,12 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
           }
         >
           {/* Image Gallery */}
-          <ImageGallery placeImages={placeImages} navigation={navigation} />
+          <ImageGallery
+            placeImages={placeImages}
+            navigation={navigation}
+            placeId={place.id}
+            userId={user?.uid}
+          />
           {/* Content */}
           <View style={styles.content}>
             {/* Hero Header Section */}
@@ -209,7 +253,9 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
                   <View style={styles.quickStatIcon}>
                     <MaterialCommunityIcons name="heart" size={18} color="#e53935" />
                   </View>
-                  <Text style={styles.quickStatValue}>{(place.popularity_score * 200).toFixed(0)}</Text>
+                  <Text style={styles.quickStatValue}>
+                    {place.favoriteCount !== undefined ? place.favoriteCount : 0}
+                  </Text>
                   <Text style={styles.quickStatLabel}>Favorites</Text>
                 </View>
               </View>
@@ -316,9 +362,13 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
 
             <WeatherSection
               openWeatherModal={openWeatherModal}
-              weatherData={weatherData}
+              weatherData={displayWeather}
             />
-            <NearbyHotelsSection />
+            <NearbyHotelsSection
+              hotels={nearbyHotels}
+              loading={hotelsLoading}
+              navigation={navigation}
+            />
             <ToursSection />
             <NearbyAttractionsSection />
             <ReviewsSection
@@ -341,7 +391,7 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
 
         <WeatherModal
           isWeatherVisible={isWeatherVisible}
-          weatherData={weatherData}
+          weatherData={displayWeather}
           closeWeatherModal={closeWeatherModal}
           place={place}
         />
