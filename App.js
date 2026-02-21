@@ -12,6 +12,7 @@ import HotelDetailsScreen from "./Screens/HotelDetailsScreen";
 import RestaurantDetailsScreen from "./Screens/RestaurantDetailsScreen";
 import ProfileScreen from "./Screens/ProfileScreen";
 import FavouritesScreen from "./Screens/FavouritesScreen";
+import TripPlanDetailScreen from "./Screens/TripPlanDetailScreen";
 
 // Service Provider Screens
 import ProviderIntroScreen from "./Screens/ServiceProvider/ProviderIntroScreen";
@@ -99,6 +100,11 @@ function Root() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="ProviderDashboard"
+            component={ProviderDashboardScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="AddTour"
             component={AddTourScreen}
             options={{ headerShown: false }}
@@ -126,6 +132,11 @@ function Root() {
           <Stack.Screen
             name="Favourites"
             component={FavouritesScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="TripPlanDetail"
+            component={TripPlanDetailScreen}
             options={{ headerShown: false }}
           />
         </Stack.Navigator>

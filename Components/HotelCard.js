@@ -16,7 +16,7 @@ const HotelCard = ({ item, responsiveWidth, navigation }) => {
     return (
         <TouchableOpacity activeOpacity={0.9} style={styles.card} onPress={handlePress}>
             <View style={styles.imageContainer}>
-                <Image source={{ uri: item.image }} style={styles.image} />
+                <Image source={{ uri: item.coverImage || item.image }} style={styles.image} />
                 <View style={styles.ratingBadge}>
                     <MaterialIcons name="star" size={14} color="#FFD700" />
                     <Text style={styles.ratingText}>{item.rating}</Text>

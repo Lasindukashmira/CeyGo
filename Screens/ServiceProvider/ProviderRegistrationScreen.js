@@ -108,19 +108,13 @@ const ProviderRegistrationScreen = ({ navigation }) => {
             await refreshUser();
 
             Alert.alert(
-                "Registration Successful! 🎉",
+                "Registration Successful",
                 "Welcome to CeyGo Service Providers! You can now start listing your services.",
                 [
                     {
                         text: "Go to Dashboard",
                         onPress: () => {
-                            navigation.reset({
-                                index: 0,
-                                routes: [
-                                    { name: "MainTabs" },
-                                    { name: "ProviderDashboard" },
-                                ],
-                            });
+                            navigation.replace("ProviderDashboard");
                         },
                     },
                 ]
@@ -148,10 +142,19 @@ const ProviderRegistrationScreen = ({ navigation }) => {
             <LinearGradient colors={["#2c5aa0", "#1e3d6f"]} style={styles.header}>
                 <SafeAreaView style={styles.headerContent}>
                     <View style={styles.headerRow}>
-                        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                        <TouchableOpacity style={styles.backBtn} onPress={() => {
+                            if (navigation.canGoBack()) {
+                                navigation.goBack();
+                            } else {
+                                navigation.navigate("Main");
+                            }
+                        }}>
                             <MaterialIcons name="arrow-back" size={24} color="#fff" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Register as Provider</Text>
+                        <View style={styles.headerTitleContainer}>
+                            <Text style={styles.headerTitle}>Register as Provider</Text>
+                            <Text style={styles.headerSubtitle}>Join the CeyGo ecosystem</Text>
+                        </View>
                         <View style={{ width: 44 }} />
                     </View>
                 </SafeAreaView>
@@ -350,7 +353,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#f5f5f5",
     },
     header: {
-        paddingBottom: 20,
+        paddingBottom: 25,
     },
     headerContent: {
         paddingHorizontal: 20,
@@ -362,6 +365,19 @@ const styles = StyleSheet.create({
         marginTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
         paddingTop: 10,
     },
+    headerTitleContainer: {
+        alignItems: "center",
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: "700",
+        color: "#fff",
+    },
+    headerSubtitle: {
+        fontSize: 12,
+        color: "rgba(255,255,255,0.7)",
+        marginTop: 2,
+    },
     backBtn: {
         width: 44,
         height: 44,
@@ -370,24 +386,19 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#fff",
-    },
     scrollView: {
         flex: 1,
         paddingHorizontal: 20,
-        paddingTop: 25,
+        paddingTop: 20,
     },
     inputGroup: {
-        marginBottom: 22,
+        marginBottom: 20,
     },
     inputLabel: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: "600",
         color: "#333",
-        marginBottom: 10,
+        marginBottom: 8,
     },
     required: {
         color: "#e53935",
@@ -398,13 +409,18 @@ const styles = StyleSheet.create({
     },
     textInput: {
         backgroundColor: "#fff",
-        borderRadius: 14,
+        borderRadius: 12,
         paddingHorizontal: 16,
         paddingVertical: 14,
         fontSize: 15,
         color: "#1a1a1a",
         borderWidth: 1,
-        borderColor: "#e0e0e0",
+        borderColor: "#e8e8e8",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 2,
     },
     textArea: {
         minHeight: 100,
@@ -432,22 +448,28 @@ const styles = StyleSheet.create({
     businessTypeCard: {
         width: (width - 60) / 3,
         backgroundColor: "#fff",
-        borderRadius: 14,
-        paddingVertical: 16,
+        borderRadius: 12,
+        paddingVertical: 14,
         alignItems: "center",
         borderWidth: 2,
-        borderColor: "#e0e0e0",
+        borderColor: "#f0f0f0",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 2,
     },
     businessTypeCardActive: {
         borderColor: "#2c5aa0",
         backgroundColor: "#f0f6ff",
     },
     businessTypeLabel: {
-        fontSize: 11,
+        fontSize: 10,
         color: "#666",
-        marginTop: 8,
+        marginTop: 6,
         textAlign: "center",
         fontWeight: "500",
+        paddingHorizontal: 4,
     },
     businessTypeLabelActive: {
         color: "#2c5aa0",

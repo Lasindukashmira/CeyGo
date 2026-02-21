@@ -21,12 +21,14 @@ import { useAuth } from "../../AuthContext";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import * as ImagePicker from "expo-image-picker";
+import { uploadMultipleToCloudinary } from "../../Services/CloudinaryService";
 
 const { width } = Dimensions.get("window");
 
 const AddTourScreen = ({ navigation }) => {
     const { user } = useAuth();
     const [saving, setSaving] = useState(false);
+    const [uploadingGallery, setUploadingGallery] = useState(false);
     const [images, setImages] = useState([]);
     const [currentStep, setCurrentStep] = useState(1);
 
@@ -62,8 +64,16 @@ const AddTourScreen = ({ navigation }) => {
         });
 
         if (!result.canceled) {
-            const newImages = result.assets.map((asset) => asset.uri);
-            setImages([...images, ...newImages].slice(0, 5));
+            setUploadingGallery(true);
+            try {
+                const newUris = result.assets.map((asset) => asset.uri);
+                const uploadedUrls = await uploadMultipleToCloudinary(newUris, "services/tours");
+                setImages([...images, ...uploadedUrls].slice(0, 5));
+            } catch (error) {
+                Alert.alert("Upload Error", "Failed to upload some images.");
+            } finally {
+                setUploadingGallery(false);
+            }
         }
     };
 
@@ -274,7 +284,12 @@ const AddTourScreen = ({ navigation }) => {
                             </TouchableOpacity>
                         </View>
                     ))}
-                    {images.length < 5 && (
+                    {uploadingGallery ? (
+                        <View style={styles.addImageBtn}>
+                            <ActivityIndicator size="small" color="#2c5aa0" />
+                            <Text style={styles.addImageText}>Uploading...</Text>
+                        </View>
+                    ) : images.length < 5 && (
                         <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
                             <MaterialIcons name="add-a-photo" size={28} color="#666" />
                             <Text style={styles.addImageText}>Add</Text>

@@ -39,7 +39,10 @@ const ProviderDashboardScreen = ({ navigation }) => {
     // Refresh services whenever screen is focused
     useFocusEffect(
         React.useCallback(() => {
-            fetchServices();
+            // Only fetch if user is logged in
+            if (user?.uid) {
+                fetchServices();
+            }
         }, [user?.uid])
     );
 

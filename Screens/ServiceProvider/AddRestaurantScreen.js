@@ -21,6 +21,7 @@ import { useAuth } from "../../AuthContext";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import * as ImagePicker from "expo-image-picker";
+import { uploadToCloudinary, uploadMultipleToCloudinary } from "../../Services/CloudinaryService";
 
 const { width } = Dimensions.get("window");
 
@@ -38,6 +39,8 @@ const FOOD_CATEGORIES = [
 const AddRestaurantScreen = ({ navigation }) => {
     const { user } = useAuth();
     const [saving, setSaving] = useState(false);
+    const [uploadingGallery, setUploadingGallery] = useState(false);
+    const [uploadingFoodImage, setUploadingFoodImage] = useState(false);
     const [images, setImages] = useState([]);
     const [currentStep, setCurrentStep] = useState(1);
     const [tempFoodItem, setTempFoodItem] = useState({
@@ -91,8 +94,16 @@ const AddRestaurantScreen = ({ navigation }) => {
         });
 
         if (!result.canceled) {
-            const newImages = result.assets.map((asset) => asset.uri);
-            setImages([...images, ...newImages].slice(0, 5));
+            setUploadingGallery(true);
+            try {
+                const newUris = result.assets.map((asset) => asset.uri);
+                const uploadedUrls = await uploadMultipleToCloudinary(newUris, "services/restaurants");
+                setImages([...images, ...uploadedUrls].slice(0, 5));
+            } catch (error) {
+                Alert.alert("Upload Error", "Failed to upload some images. Please try again.");
+            } finally {
+                setUploadingGallery(false);
+            }
         }
     };
 
@@ -303,10 +314,23 @@ const AddRestaurantScreen = ({ navigation }) => {
                             aspect: [1, 1],
                         });
                         if (!result.canceled) {
-                            setTempFoodItem({ ...tempFoodItem, image: result.assets[0].uri });
+                            setUploadingFoodImage(true);
+                            try {
+                                const imageUrl = await uploadToCloudinary(result.assets[0].uri, "services/menu_items");
+                                setTempFoodItem({ ...tempFoodItem, image: imageUrl });
+                            } catch (e) {
+                                Alert.alert("Upload Error", "Failed to upload image.");
+                            } finally {
+                                setUploadingFoodImage(false);
+                            }
                         }
                     }}>
-                        {tempFoodItem.image ? (
+                        {uploadingFoodImage ? (
+                            <View style={styles.addImagePlaceholder}>
+                                <ActivityIndicator size="small" color="#2c5aa0" />
+                                <Text style={styles.addImagePlaceholderText}>Uploading...</Text>
+                            </View>
+                        ) : tempFoodItem.image ? (
                             <Image source={{ uri: tempFoodItem.image }} style={styles.tempFoodImage} />
                         ) : (
                             <View style={styles.addImagePlaceholder}>
@@ -443,7 +467,12 @@ const AddRestaurantScreen = ({ navigation }) => {
                             </TouchableOpacity>
                         </View>
                     ))}
-                    {images.length < 5 && (
+                    {uploadingGallery ? (
+                        <View style={styles.addImageBtn}>
+                            <ActivityIndicator size="small" color="#2c5aa0" />
+                            <Text style={styles.addImageText}>Uploading...</Text>
+                        </View>
+                    ) : images.length < 5 && (
                         <TouchableOpacity style={styles.addImageBtn} onPress={pickImage}>
                             <MaterialIcons name="add-a-photo" size={28} color="#666" />
                             <Text style={styles.addImageText}>Add</Text>

@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { doc, deleteDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import * as ImagePicker from "expo-image-picker";
+import { uploadToCloudinary, uploadMultipleToCloudinary } from "../../Services/CloudinaryService";
 
 const { width } = Dimensions.get("window");
 
@@ -38,8 +39,11 @@ const EditServiceScreen = ({ route, navigation }) => {
     const [deleting, setDeleting] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [updatingMenu, setUpdatingMenu] = useState(false);
+    const [updatingGallery, setUpdatingGallery] = useState(false);
+    const [uploadingFoodImage, setUploadingFoodImage] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [menu, setMenu] = useState(service.restaurantDetails?.menu || []);
+    const [gallery, setGallery] = useState(service.images || []);
     const [tempFoodItem, setTempFoodItem] = useState({
         name: "",
         description: "",
@@ -62,6 +66,49 @@ const EditServiceScreen = ({ route, navigation }) => {
             Alert.alert("Error", "Failed to update menu.");
         }
         setUpdatingMenu(false);
+    };
+
+    const handleUpdateGallery = async (newGalleryImages) => {
+        setUpdatingGallery(true);
+        try {
+            // Check for new local images and upload them
+            const currentCloudinaryUrls = newGalleryImages.filter(img => !img.startsWith('file://') && !img.startsWith('content://'));
+            const localUris = newGalleryImages.filter(img => img.startsWith('file://') || img.startsWith('content://'));
+
+            let additionalUrls = [];
+            if (localUris.length > 0) {
+                additionalUrls = await uploadMultipleToCloudinary(localUris, "services/restaurants");
+            }
+
+            const finalGallery = [...currentCloudinaryUrls, ...additionalUrls];
+
+            await updateDoc(doc(db, "services", service.id), {
+                images: finalGallery,
+                coverImage: finalGallery[0] || null,
+                updatedAt: new Date(),
+            });
+
+            setGallery(finalGallery);
+            Alert.alert("Success", "Gallery updated successfully.");
+        } catch (error) {
+            console.error("Error updating gallery:", error);
+            Alert.alert("Error", "Failed to update gallery.");
+        }
+        setUpdatingGallery(false);
+    };
+
+    const handlePickGalleryImages = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsMultipleSelection: true,
+            quality: 0.8,
+            selectionLimit: 5 - gallery.length,
+        });
+
+        if (!result.canceled) {
+            const newUris = result.assets.map(asset => asset.uri);
+            handleUpdateGallery([...gallery, ...newUris]);
+        }
     };
 
     const handleDelete = () => {
@@ -172,6 +219,43 @@ const EditServiceScreen = ({ route, navigation }) => {
                     </View>
 
                     <View style={styles.section}>
+                        <View style={styles.titleRow}>
+                            <Text style={styles.sectionTitle}>Gallery</Text>
+                            <TouchableOpacity
+                                onPress={handlePickGalleryImages}
+                                disabled={updatingGallery || gallery.length >= 5}
+                            >
+                                <Text style={[styles.addBtnText, gallery.length >= 5 && { color: "#ccc" }]}>
+                                    {updatingGallery ? "Uploading..." : `Add Photo (${gallery.length}/5)`}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.editGalleryList}>
+                            {gallery.map((img, index) => (
+                                <View key={index} style={styles.editGalleryItem}>
+                                    <Image source={{ uri: img }} style={styles.editGalleryImage} />
+                                    <TouchableOpacity
+                                        style={styles.removeImgBtn}
+                                        onPress={() => {
+                                            const newGal = gallery.filter((_, i) => i !== index);
+                                            handleUpdateGallery(newGal);
+                                        }}
+                                        disabled={updatingGallery}
+                                    >
+                                        <MaterialIcons name="close" size={16} color="#fff" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                            {gallery.length === 0 && (
+                                <View style={styles.emptyGallery}>
+                                    <MaterialIcons name="photo-library" size={40} color="#ddd" />
+                                    <Text style={styles.emptyGalleryText}>No images in gallery</Text>
+                                </View>
+                            )}
+                        </ScrollView>
+                    </View>
+
+                    <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Location</Text>
                         <View style={styles.iconInfo}>
                             <MaterialIcons name="location-on" size={18} color="#666" />
@@ -246,11 +330,24 @@ const EditServiceScreen = ({ route, navigation }) => {
                                                     aspect: [1, 1],
                                                 });
                                                 if (!result.canceled) {
-                                                    setTempFoodItem({ ...tempFoodItem, image: result.assets[0].uri });
+                                                    setUploadingFoodImage(true);
+                                                    try {
+                                                        const imageUrl = await uploadToCloudinary(result.assets[0].uri, "services/menu_items");
+                                                        setTempFoodItem({ ...tempFoodItem, image: imageUrl });
+                                                    } catch (e) {
+                                                        Alert.alert("Error", "Failed to upload image.");
+                                                    } finally {
+                                                        setUploadingFoodImage(false);
+                                                    }
                                                 }
                                             }}
                                         >
-                                            {tempFoodItem.image ? (
+                                            {uploadingFoodImage ? (
+                                                <View style={styles.addFoodImagePlaceholder}>
+                                                    <ActivityIndicator size="small" color="#2c5aa0" />
+                                                    <Text style={styles.addFoodImageText}>...</Text>
+                                                </View>
+                                            ) : tempFoodItem.image ? (
                                                 <Image source={{ uri: tempFoodItem.image }} style={styles.formTempImage} />
                                             ) : (
                                                 <View style={styles.addFoodImagePlaceholder}>
@@ -729,6 +826,53 @@ const styles = StyleSheet.create({
     },
     categoryTagTextActive: {
         color: "#fff",
+    },
+    addBtnText: {
+        color: "#2c5aa0",
+        fontWeight: "700",
+        fontSize: 14,
+    },
+    editGalleryList: {
+        marginTop: 10,
+    },
+    editGalleryItem: {
+        marginRight: 12,
+        position: "relative",
+    },
+    editGalleryImage: {
+        width: 120,
+        height: 100,
+        borderRadius: 12,
+        backgroundColor: "#f5f5f5",
+    },
+    removeImgBtn: {
+        position: "absolute",
+        top: -5,
+        right: -5,
+        backgroundColor: "rgba(255,0,0,0.8)",
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: "#fff",
+    },
+    emptyGallery: {
+        width: width - 80,
+        height: 100,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#eee",
+        borderStyle: "dashed",
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "#fafafa",
+    },
+    emptyGalleryText: {
+        fontSize: 12,
+        color: "#999",
+        marginTop: 5,
     },
 });
 

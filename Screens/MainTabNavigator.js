@@ -207,6 +207,11 @@ const ProviderTabs = () => (
 const MainTabNavigator = () => {
   const { user } = useAuth();
 
+  // If user is null (logging out), return null to prevent navigation issues
+  if (!user) {
+    return null;
+  }
+
   // Memoize the provider check to avoid re-renders
   const isProvider = useMemo(() => {
     return user?.role === "service_provider";

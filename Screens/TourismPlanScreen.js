@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,16 @@ import {
   TextInput,
   ScrollView,
   Platform,
-  StatusBar
+  StatusBar,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
 import { LinearGradient } from 'expo-linear-gradient'; // Premium Gradients
-import LoadingScreen from '../Components/LoadingScreen';
+import AILoadingScreen from '../Components/AILoadingScreen';
 import { districs } from '../constData';
+import { generateTripPlan } from '../Services/TripPlannerService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -41,6 +43,7 @@ const TourismPlanScreen = ({ navigation }) => {
   const [plans, setPlans] = useState([]);
   const [isWizardOpen, setWizardOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const isGenerating = useRef(false); // Guard against multiple taps
 
   // Wizard Data
   const [step, setStep] = useState(1);
@@ -173,26 +176,48 @@ const TourismPlanScreen = ({ navigation }) => {
     if (step > 1) setStep(step - 1);
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    // Prevent multiple simultaneous calls
+    if (isGenerating.current) return;
+    isGenerating.current = true;
+
     setWizardOpen(false);
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const plan = await generateTripPlan(tripData);
+
+      // Create a summary card for the plans list
       const newPlan = {
-        id: Date.now().toString(),
-        title: tripData.isSurprise ? "Surprise Adventure" : `Unknown Trip`, // Fallback for logic
-        displayTitle: tripData.isSurprise ? "Surprise Adventure" : `${tripData.destination} Escape`,
-        subtitle: `${tripData.duration} Days • ${tripData.travelers}`,
+        id: plan.id,
+        title: plan.tripTitle || (tripData.isSurprise ? "Surprise Adventure" : `${tripData.destination} Escape`),
+        displayTitle: plan.tripTitle || (tripData.isSurprise ? "Surprise Adventure" : `${tripData.destination} Escape`),
+        subtitle: `${plan.duration || tripData.duration} Days • ${plan.travelers || tripData.travelers}`,
         dates: `${tripData.startDate} - ${tripData.endDate}`,
-        image: tripData.destination
+        image: plan.image || (tripData.destination
           ? (districs.find(d => d.name === tripData.destination)?.image || "https://images.unsplash.com/photo-1586619782390-50d4d8fc38b3")
-          : "https://images.unsplash.com/photo-1546708773-e578c7bd5f68?q=80&w=2070", // Surprise generic
+          : "https://images.unsplash.com/photo-1546708773-e578c7bd5f68?q=80&w=2070"),
         createdAt: new Date(),
-        budget: tripData.budget
+        budget: plan.budgetTier || tripData.budget,
+        fullPlan: plan, // Store the full plan for detail view
       };
+
       setPlans(prev => [newPlan, ...prev]);
       setLoading(false);
-    }, 4000);
+
+      // Navigate to the detail screen
+      navigation.navigate('TripPlanDetail', { plan });
+    } catch (error) {
+      setLoading(false);
+      console.error('Trip generation error:', error);
+      Alert.alert(
+        'Generation Failed',
+        'Could not generate your trip plan. Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      isGenerating.current = false;
+    }
   };
 
   // --- Renderers ---
@@ -225,7 +250,7 @@ const TourismPlanScreen = ({ navigation }) => {
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={styles.createBtnGradient}
         >
-          <MaterialCommunityIcons name="sparkles" size={22} color="#fff" />
+          <MaterialCommunityIcons name="star-four-points" size={22} color="#fff" />
           <Text style={styles.createBtnText}>Plan a New Trip</Text>
         </LinearGradient>
       </TouchableOpacity>
@@ -233,7 +258,7 @@ const TourismPlanScreen = ({ navigation }) => {
   );
 
   const renderPlanItem = ({ item }) => (
-    <TouchableOpacity style={styles.planCard} activeOpacity={0.9}>
+    <TouchableOpacity style={styles.planCard} activeOpacity={0.9} onPress={() => item.fullPlan && navigation.navigate('TripPlanDetail', { plan: item.fullPlan })}>
       <Image source={typeof item.image === 'number' ? item.image : { uri: item.image }} style={styles.planImage} />
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.8)']}
@@ -471,7 +496,7 @@ const TourismPlanScreen = ({ navigation }) => {
 
       {/* Loading Overlay */}
       <Modal visible={loading} animationType="fade" transparent={false}>
-        <LoadingScreen message="AI is crafting your itinerary..." />
+        <AILoadingScreen />
       </Modal>
 
       {/* Wizard Modal */}

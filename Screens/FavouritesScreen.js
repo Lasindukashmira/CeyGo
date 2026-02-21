@@ -63,7 +63,9 @@ const FavouritesScreen = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      fetchFavorites();
+      if (user?.uid) {
+        fetchFavorites();
+      }
     }, [user])
   );
 

@@ -5,10 +5,7 @@ const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const API_KEY = process.env.EXPO_PUBLIC_CLOUDINARY_API_KEY;
 const API_SECRET = process.env.EXPO_PUBLIC_CLOUDINARY_SECRET_API_KEY;
 
-/**
- * Generates a Cloudinary signature for signed uploads.
- * Standard formula: {params_sorted_alphabetically_joined_with_&} + API_SECRET -> SHA1
- */
+
 const generateSignature = async (params) => {
     try {
         const sortedParams = Object.keys(params)
@@ -28,14 +25,13 @@ const generateSignature = async (params) => {
     }
 };
 
-export const uploadToCloudinary = async (fileUri) => {
+export const uploadToCloudinary = async (fileUri, folder = "general") => {
     if (!fileUri) return null;
 
     try {
         const timestamp = Math.round(new Date().getTime() / 1000);
-        const folder = "userprofile";
 
-        // Parameters to sign (must be sorted alphabetically for signature)
+
         const paramsToSign = {
             folder: folder,
             timestamp: timestamp,
@@ -115,5 +111,18 @@ const uploadToCloudinaryFallback = async (fileUri) => {
     } catch (error) {
         console.error("Fallback upload failed:", error);
         return null;
+    }
+};
+
+export const uploadMultipleToCloudinary = async (fileUris, folder = "general") => {
+    if (!fileUris || !Array.isArray(fileUris) || fileUris.length === 0) return [];
+
+    try {
+        const uploadPromises = fileUris.map(uri => uploadToCloudinary(uri, folder));
+        const results = await Promise.all(uploadPromises);
+        return results.filter(url => url !== null);
+    } catch (error) {
+        console.error("Error in uploadMultipleToCloudinary:", error);
+        throw error;
     }
 };

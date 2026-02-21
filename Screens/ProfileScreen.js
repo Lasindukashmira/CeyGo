@@ -100,7 +100,7 @@ const ProfileScreen = ({ navigation }) => {
             if (!result.canceled) {
                 setUploadingImage(true);
                 try {
-                    const imageUrl = await uploadToCloudinary(result.assets[0].uri);
+                    const imageUrl = await uploadToCloudinary(result.assets[0].uri, "userprofile");
                     if (imageUrl) {
                         await updateDoc(doc(db, "users", user.uid), {
                             profilePicture: imageUrl,

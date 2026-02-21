@@ -90,7 +90,7 @@ const RestaurantDetailsScreen = ({ route, navigation }) => {
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} bounces={true}>
                 {/* Hero Image Section */}
                 <View style={styles.heroContainer}>
-                    <Image source={{ uri: restaurant.image }} style={styles.heroImage} resizeMode="cover" />
+                    <Image source={{ uri: restaurant.coverImage || restaurant.image }} style={styles.heroImage} resizeMode="cover" />
                     <LinearGradient
                         colors={["rgba(0,0,0,0.1)", "rgba(0,0,0,0.7)"]}
                         style={styles.heroGradient}
@@ -214,50 +214,71 @@ const RestaurantDetailsScreen = ({ route, navigation }) => {
                         </View>
                     </View>
 
+                    {/* Gallery Section */}
+                    {restaurant.images && restaurant.images.length > 0 && (
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <MaterialIcons name="photo-library" size={22} color="#2c5aa0" />
+                                <Text style={styles.sectionTitle}>Gallery</Text>
+                            </View>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                {restaurant.images.map((img, index) => (
+                                    <TouchableOpacity key={index} activeOpacity={0.9}>
+                                        <Image source={{ uri: img }} style={styles.galleryImage} />
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
+
                     {/* Opening Hours Section */}
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <MaterialCommunityIcons name="clock-outline" size={22} color="#2c5aa0" />
-                            <Text style={styles.sectionTitle}>Hours</Text>
-                        </View>
-                        <View style={styles.hoursCard}>
-                            <View style={styles.hoursRow}>
-                                <View style={styles.hoursItem}>
-                                    <Text style={styles.hoursLabel}>Lunch</Text>
-                                    <Text style={styles.hoursValue}>11:30 AM - 3:00 PM</Text>
-                                </View>
-                                <View style={styles.hoursDivider} />
-                                <View style={styles.hoursItem}>
-                                    <Text style={styles.hoursLabel}>Dinner</Text>
-                                    <Text style={styles.hoursValue}>6:00 PM - 11:00 PM</Text>
-                                </View>
+                    {restaurant.restaurantDetails?.openingHours && (
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <MaterialCommunityIcons name="clock-outline" size={22} color="#2c5aa0" />
+                                <Text style={styles.sectionTitle}>Opening Hours</Text>
                             </View>
-                            <View style={styles.statusRow}>
-                                <View style={styles.openBadge}>
-                                    <View style={styles.openDot} />
-                                    <Text style={styles.openText}>Open Now</Text>
-                                </View>
+                            <View style={styles.hoursCard}>
+                                {Object.entries(restaurant.restaurantDetails.openingHours).map(([day, hours]) => (
+                                    <View key={day} style={styles.hoursListRow}>
+                                        <Text style={[styles.dayLabel, !hours.active && styles.closedDayText]}>
+                                            {day.charAt(0).toUpperCase() + day.slice(1)}
+                                        </Text>
+                                        <Text style={[styles.hoursValueText, !hours.active && styles.closedDayText]}>
+                                            {hours.active ? `${hours.open} - ${hours.close}` : "Closed"}
+                                        </Text>
+                                    </View>
+                                ))}
                             </View>
                         </View>
-                    </View>
+                    )}
 
                     {/* Popular Dishes Section */}
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <MaterialCommunityIcons name="food" size={22} color="#2c5aa0" />
-                            <Text style={styles.sectionTitle}>Popular Dishes</Text>
-                        </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            {["Signature Crab", "Seafood Platter", "Grilled Prawns", "Chef's Special"].map(
-                                (dish, index) => (
+                    {restaurant.restaurantDetails?.menu && restaurant.restaurantDetails.menu.length > 0 && (
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <MaterialCommunityIcons name="food" size={22} color="#2c5aa0" />
+                                <Text style={styles.sectionTitle}>Menu Items</Text>
+                            </View>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                {restaurant.restaurantDetails.menu.map((item, index) => (
                                     <View key={index} style={styles.dishCard}>
-                                        <MaterialCommunityIcons name="food" size={24} color="#2c5aa0" />
-                                        <Text style={styles.dishName}>{dish}</Text>
+                                        {item.image ? (
+                                            <Image source={{ uri: item.image }} style={styles.dishImage} />
+                                        ) : (
+                                            <View style={styles.dishIconPlaceholder}>
+                                                <MaterialCommunityIcons name="food" size={24} color="#2c5aa0" />
+                                            </View>
+                                        )}
+                                        <View style={styles.dishContent}>
+                                            <Text style={styles.dishName} numberOfLines={1}>{item.name}</Text>
+                                            <Text style={styles.dishPrice}>Rs. {item.price}</Text>
+                                        </View>
                                     </View>
-                                )
-                            )}
-                        </ScrollView>
-                    </View>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
 
                     {/* Location Section */}
                     <View style={styles.section}>
@@ -621,22 +642,64 @@ const styles = StyleSheet.create({
     },
     // Popular Dishes
     dishCard: {
-        width: 120,
-        height: 100,
+        width: 150,
         backgroundColor: "#f8f9fa",
         borderRadius: 16,
         marginRight: 12,
-        justifyContent: "center",
-        alignItems: "center",
+        overflow: "hidden",
         borderWidth: 1,
         borderColor: "#e9ecef",
     },
+    dishImage: {
+        width: "100%",
+        height: 100,
+    },
+    dishIconPlaceholder: {
+        width: "100%",
+        height: 100,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "#e3f2fd",
+    },
+    dishContent: {
+        padding: 10,
+    },
     dishName: {
-        fontSize: 12,
-        fontWeight: "600",
+        fontSize: 13,
+        fontWeight: "700",
         color: "#333",
-        marginTop: 8,
-        textAlign: "center",
+    },
+    dishPrice: {
+        fontSize: 12,
+        color: "#ff9800",
+        fontWeight: "bold",
+        marginTop: 2,
+    },
+    galleryImage: {
+        width: 200,
+        height: 130,
+        borderRadius: 16,
+        marginRight: 12,
+    },
+    hoursListRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: 6,
+        borderBottomWidth: 1,
+        borderBottomColor: "#f0f0f0",
+    },
+    dayLabel: {
+        fontSize: 14,
+        fontWeight: "600",
+        color: "#555",
+    },
+    hoursValueText: {
+        fontSize: 14,
+        color: "#1a1a1a",
+        fontWeight: "500",
+    },
+    closedDayText: {
+        color: "#ccc",
     },
     // Location
     locationCard: {

@@ -77,14 +77,20 @@ const ProviderIntroScreen = ({ navigation }) => {
                 style={styles.heroGradient}
             >
                 <SafeAreaView style={styles.header}>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => {
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else {
+                            navigation.navigate("Main");
+                        }
+                    }}>
                         <MaterialIcons name="arrow-back" size={24} color="#fff" />
                     </TouchableOpacity>
                 </SafeAreaView>
 
                 <View style={styles.heroContent}>
                     <View style={styles.iconCircle}>
-                        <MaterialCommunityIcons name="briefcase-account" size={48} color="#fff" />
+                        <MaterialCommunityIcons name="briefcase-account" size={32} color="#fff" />
                     </View>
                     <Text style={styles.heroTitle}>Become a Service Provider</Text>
                     <Text style={styles.heroSubtitle}>
@@ -213,7 +219,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#f5f5f5",
     },
     heroGradient: {
-        paddingBottom: 30,
+        paddingBottom: 25,
     },
     header: {
         paddingHorizontal: 20,
@@ -230,45 +236,45 @@ const styles = StyleSheet.create({
     heroContent: {
         alignItems: "center",
         paddingHorizontal: 30,
-        paddingTop: 20,
+        paddingTop: 10,
     },
     iconCircle: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+        width: 70,
+        height: 70,
+        borderRadius: 35,
         backgroundColor: "rgba(255,255,255,0.15)",
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: 20,
+        marginBottom: 15,
     },
     heroTitle: {
-        fontSize: 28,
+        fontSize: 24,
         fontWeight: "800",
         color: "#fff",
         textAlign: "center",
-        marginBottom: 12,
+        marginBottom: 8,
     },
     heroSubtitle: {
-        fontSize: 16,
+        fontSize: 14,
         color: "rgba(255,255,255,0.8)",
         textAlign: "center",
-        lineHeight: 24,
+        lineHeight: 20,
     },
     serviceTypesRow: {
         flexDirection: "row",
         flexWrap: "wrap",
         justifyContent: "center",
-        marginTop: 25,
+        marginTop: 12,
         paddingHorizontal: 10,
-        gap: 8,
+        gap: 6,
     },
     serviceTypePill: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 20,
-        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        gap: 4,
     },
     serviceTypePillText: {
         color: "#fff",
@@ -277,13 +283,13 @@ const styles = StyleSheet.create({
     },
     scrollView: {
         flex: 1,
-        marginTop: -20,
+        marginTop: -15,
         borderTopLeftRadius: 25,
         borderTopRightRadius: 25,
         backgroundColor: "#f5f5f5",
     },
     scrollContent: {
-        paddingTop: 30,
+        paddingTop: 35,
     },
     section: {
         paddingHorizontal: 20,
