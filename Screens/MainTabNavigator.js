@@ -6,7 +6,7 @@ import HomeScreen from "./HomeScreen";
 import ExploreScreen from "./ExploreScreen";
 import TourismPlanScreen from "./TourismPlanScreen";
 import FavouritesScreen from "./FavouritesScreen";
-import VRScreen from "./VRScreen";
+import ARScreen from "./ARScreen";
 import ProviderDashboardScreen from "./ServiceProvider/ProviderDashboardScreen";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -103,13 +103,13 @@ const TouristTabs = () => (
       }}
     />
     <Tab.Screen
-      name="VR"
-      component={VRScreen}
+      name="AR"
+      component={ARScreen}
       options={{
         tabBarIcon: ({ focused }) => (
           <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
             <MaterialCommunityIcons
-              name="virtual-reality"
+              name="cube-scan"
               size={24}
               color={focused ? "#2c5aa0" : "#999"}
             />
@@ -187,13 +187,13 @@ const ProviderTabs = () => (
       }}
     />
     <Tab.Screen
-      name="VR"
-      component={VRScreen}
+      name="AR"
+      component={ARScreen}
       options={{
         tabBarIcon: ({ focused }) => (
           <View style={[styles.iconWrapper, focused && styles.iconWrapperActive]}>
             <MaterialCommunityIcons
-              name="virtual-reality"
+              name="cube-scan"
               size={24}
               color={focused ? "#2c5aa0" : "#999"}
             />
