@@ -11,13 +11,14 @@ import {
   Alert,
   ScrollView,
 } from "react-native";
-import { useAuth } from "../AuthContext";
+import { useAuth, useGoogleAuth } from "../AuthContext";
 import { AntDesign } from "@expo/vector-icons";
 import LoadingScreen from "../Components/LoadingScreen";
 import { Modal } from "react-native";
 
 const RegisterScreen = ({ navigation }) => {
   const { register } = useAuth();
+  const { promptGoogleSignIn, request, googleLoading, googleError } = useGoogleAuth();
   const [isRegistering, setIsRegistering] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -104,19 +105,20 @@ const RegisterScreen = ({ navigation }) => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    Alert.alert(
-      "Google Login",
-      "Google login functionality will be implemented"
-    );
-  };
-
   const handleFacebookLogin = () => {
     Alert.alert(
       "Facebook Login",
       "Facebook login functionality will be implemented"
     );
   };
+
+  // Combine register loading + Google loading for the loading modal
+  const showLoading = isRegistering || googleLoading;
+
+  // Show google error if it exists
+  if (googleError) {
+    Alert.alert("Google Registration Error", googleError);
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -237,8 +239,9 @@ const RegisterScreen = ({ navigation }) => {
                 <Text style={styles.orText}>OR</Text>
 
                 <TouchableOpacity
-                  style={styles.socialButton}
-                  onPress={handleGoogleLogin}
+                  style={[styles.socialButton, !request && styles.socialButtonDisabled]}
+                  onPress={promptGoogleSignIn}
+                  disabled={!request}
                 >
                   <AntDesign name="google" size={20} color="#DB4437" style={styles.socialIcon} />
                   <Text style={styles.socialButtonText}>Continue with Google</Text>
@@ -274,7 +277,7 @@ const RegisterScreen = ({ navigation }) => {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal visible={isRegistering} transparent={false} animationType="fade">
+      <Modal visible={showLoading} transparent={false} animationType="fade">
         <LoadingScreen message="Creating your account..." />
       </Modal>
     </SafeAreaView>
@@ -397,6 +400,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+  },
+  socialButtonDisabled: {
+    opacity: 0.5,
   },
   socialIcon: {
     marginRight: 10,

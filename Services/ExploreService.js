@@ -54,10 +54,7 @@ export const getUnifiedServices = async (type, options = {}) => {
                 image: item.image,
                 rating: item.rating,
                 reviewCount: item.reviewCount,
-                location: {
-                    address: item.location,
-                    district: district
-                },
+                location: item.location || district || 'Sri Lanka',
                 pricing: {
                     priceLKR: item.priceLKR || (item.price ? Math.round(item.price * 300) : null),
                     basePrice: item.price

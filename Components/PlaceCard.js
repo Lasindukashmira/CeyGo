@@ -138,7 +138,7 @@ const PlaceCard = ({ item, onPress, getCategoryIcon, rank, navigation }) => {
         <View style={styles.locationRow}>
           <MaterialIcons name="location-on" size={14} color="#2c5aa0" />
           <Text style={styles.locationText} numberOfLines={1}>
-            {item.geolocation.district}, {item.geolocation.province}
+            {item.geolocation?.district || 'Unknown District'}, {item.geolocation?.province || ''}
           </Text>
         </View>
 

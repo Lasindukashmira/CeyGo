@@ -18,15 +18,12 @@ import * as WebBrowser from "expo-web-browser";
 WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-const EXPO_USERNAME = process.env.EXPO_PUBLIC_EXPO_USERNAME || "";
+const EXPO_USERNAME = "lasinduw";
 
-// This redirect URI must be whitelisted in Google Cloud Console
-// Credentials -> your Web OAuth Client -> Authorized redirect URIs
-const redirectUri = EXPO_USERNAME
-  ? `https://auth.expo.io/@${EXPO_USERNAME}/CeyGo_Tourism_App`
-  : makeRedirectUri();
+// Whitelisted URI in Google Cloud Console
+const redirectUri = `https://auth.expo.io/@${EXPO_USERNAME}/CeyGo_Tourism_App`;
 
-console.log("[GoogleAuth] Whitelist this URI in Google Cloud Console:", redirectUri);
+console.log("[GoogleAuth] Using Whitelisted Redirect URI:", makeRedirectUri({ proxy: true }));
 
 const AuthContext = createContext();
 
@@ -130,13 +127,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => useContext(AuthContext);
 
-/**
- * useGoogleAuth — custom hook that encapsulates the full Google OAuth flow.
- *
- * Usage in any screen:
- *   const { promptGoogleSignIn, googleLoading, googleError } = useGoogleAuth();
- *   <Button onPress={promptGoogleSignIn} />
- */
 export const useGoogleAuth = () => {
   const { loginWithGoogle } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -150,21 +140,39 @@ export const useGoogleAuth = () => {
   });
 
   useEffect(() => {
+    if (response) {
+      console.log("[GoogleAuth] Response Received:", JSON.stringify(response, null, 2));
+    }
+
     if (response?.type === "success") {
-      const { id_token } = response.params;
-      handleCredential(id_token);
+      const { id_token, authentication } = response.params;
+      const tokenToUse = id_token || response.authentication?.idToken;
+
+      console.log("[GoogleAuth] Success! Token found:", !!tokenToUse);
+
+      if (tokenToUse) {
+        handleCredential(tokenToUse);
+      } else {
+        console.warn("[GoogleAuth] Success but no ID Token found in response params or authentication object.");
+        setGoogleError("Login failed: ID Token missing from response.");
+      }
     } else if (response?.type === "error") {
+      console.error("[GoogleAuth] Error response:", response.error);
       setGoogleError("Google sign-in failed. Please try again.");
+    } else if (response?.type === "cancel") {
+      console.log("[GoogleAuth] User cancelled sign-in");
     }
   }, [response]);
 
   const handleCredential = async (idToken) => {
     try {
+      console.log("[GoogleAuth] Attempting Firebase login with token...");
       setGoogleError("");
       setGoogleLoading(true);
       await loginWithGoogle(idToken);
-      // onAuthStateChanged in AuthContext will update user and trigger navigation
+      console.log("[GoogleAuth] Firebase login successful!");
     } catch (err) {
+      console.error("[GoogleAuth] handleCredential Error:", err);
       setGoogleError(err.message || "Google sign-in failed. Please try again.");
     } finally {
       setGoogleLoading(false);

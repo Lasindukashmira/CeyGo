@@ -17,6 +17,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import SectionHeader from "../Components/SectionHeader";
 import PlaceCard from "../Components/PlaceCard";
 import HotelCard from "../Components/HotelCard";
+import { getPlacesByDistrict } from "../Services/PlacesService";
+import { getUnifiedServices } from "../Services/ExploreService";
+import { ActivityIndicator } from "react-native";
 
 const { width } = Dimensions.get("window");
 
@@ -159,6 +162,39 @@ const StatItem = ({ icon, value, label, color }) => (
 
 const DistrictDetailsScreen = ({ route, navigation }) => {
   const { districtName, province, image: paramImage } = route.params || {};
+  
+  const [places, setPlaces] = React.useState([]);
+  const [hotels, setHotels] = React.useState([]);
+  const [tours, setTours] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      if (!districtName) return;
+      
+      setLoading(true);
+      try {
+        console.log(`[DistrictDetails] Fetching data for: ${districtName}`);
+        
+        // Parallel requests
+        const [placesData, hotelsData, toursData] = await Promise.all([
+          getPlacesByDistrict(districtName),
+          getUnifiedServices('hotel', { district: districtName, limitCount: 10 }),
+          getUnifiedServices('tour', { district: districtName, limitCount: 10 })
+        ]);
+
+        setPlaces(placesData);
+        setHotels(hotelsData.results || []);
+        setTours(toursData.results || []);
+      } catch (error) {
+        console.error("Error fetching district data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [districtName]);
 
   // Handle missing params safely
   if (!districtName) {
@@ -301,14 +337,22 @@ const DistrictDetailsScreen = ({ route, navigation }) => {
             title={`Top Places in ${districtName}`}
             onSeeAllPress={() => navigation.navigate("Explore", { district: districtName })}
           />
-          <FlatList
-            data={samplePlaces}
-            renderItem={renderPlaceCard}
-            keyExtractor={(item, index) => index.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-          />
+          {loading ? (
+             <ActivityIndicator size="small" color="#2c5aa0" style={{ marginVertical: 20 }} />
+          ) : places.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No destinations found in this district yet.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={places}
+              renderItem={renderPlaceCard}
+              keyExtractor={(item, index) => item.id || index.toString()}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+            />
+          )}
         </View>
 
         {/* --- Hotels --- */}
@@ -317,14 +361,22 @@ const DistrictDetailsScreen = ({ route, navigation }) => {
             title="Where to Stay"
             onSeeAllPress={() => navigation.navigate("Explore", { type: "Hotels", district: districtName })}
           />
-          <FlatList
-            data={sampleHotels}
-            renderItem={renderHotelCard}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-          />
+          {loading ? (
+             <ActivityIndicator size="small" color="#2c5aa0" style={{ marginVertical: 20 }} />
+          ) : hotels.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No hotels available in this district yet.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={hotels}
+              renderItem={renderHotelCard}
+              keyExtractor={(item) => item.id || Math.random().toString()}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+            />
+          )}
         </View>
 
         {/* --- Tours --- */}
@@ -333,15 +385,22 @@ const DistrictDetailsScreen = ({ route, navigation }) => {
             title="Experiences & Tours"
             onSeeAllPress={() => navigation.navigate("Explore", { type: "Tours", district: districtName })}
           />
-          {/* Reusing Hotel Card style for tours for now, or just placeholders */}
-          <FlatList
-            data={sampleTours}
-            renderItem={renderHotelCard}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-          />
+          {loading ? (
+             <ActivityIndicator size="small" color="#2c5aa0" style={{ marginVertical: 20 }} />
+          ) : tours.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No experiences or tours available yet.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={tours}
+              renderItem={renderHotelCard}
+              keyExtractor={(item) => item.id || Math.random().toString()}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+            />
+          )}
         </View>
 
       </ScrollView>
@@ -617,6 +676,15 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 20,
   },
+  emptyContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#777",
+    fontStyle: 'italic',
+  }
 });
 
 export default DistrictDetailsScreen;

@@ -229,7 +229,7 @@ export const getTopRestaurants = async (location = 'Sri Lanka', forceRefresh = f
             return getFallbackRestaurants();
         }
 
-        const restaurants = parseGoogleMapsResults(data);
+        const restaurants = await parseGoogleMapsResults(data);
 
         if (restaurants.length > 0) {
             await setCachedData(RESTAURANTS_CACHE_KEY, restaurants);
@@ -368,8 +368,9 @@ const parseGoogleHotelResults = async (data) => {
  * Parse Google Maps Local Results for restaurants
  * local_results[] contains: title, rating, reviews, address, price, thumbnail, type
  */
-const parseGoogleMapsResults = (data) => {
+const parseGoogleMapsResults = async (data) => {
     const results = data.local_results || [];
+    const exchangeRate = await getExchangeRate();
 
     console.log(`Parsing ${results.length} Google Maps restaurant results`);
 
@@ -388,6 +389,7 @@ const parseGoogleMapsResults = (data) => {
             rating: item.rating || 4.5,
             reviewCount: item.reviews || 0,
             price: price,
+            priceLKR: Math.round(price * exchangeRate),
             image: item.thumbnail || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
             tags: extractRestaurantTags(item),
             amenities: ['silverware-fork-knife', 'glass-cocktail', 'wifi'],

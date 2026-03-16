@@ -122,11 +122,21 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  const fetchRestaurantsOnly = async (force = false) => {
+    try {
+      const restaurantsData = await getTopRestaurants('Sri Lanka', force);
+      if (restaurantsData && restaurantsData.length > 0) setRestaurants(restaurantsData);
+    } catch (error) {
+      console.error('Error fetching restaurants:', error);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
       fetchPlaces(true),
-      fetchHotelsOnly(true)
+      fetchHotelsOnly(true),
+      fetchRestaurantsOnly(true)
     ]);
     setRefreshing(false);
   };
@@ -134,6 +144,7 @@ const HomeScreen = ({ navigation }) => {
   useEffect(() => {
     fetchPlaces();
     fetchHotelsOnly();
+    fetchRestaurantsOnly();
 
     // Animations
     Animated.parallel([
@@ -440,7 +451,7 @@ const HomeScreen = ({ navigation }) => {
             onSeeAllPress={() => console.log("See all restaurants")}
           />
           <FlatList
-            data={topRestaurants}
+            data={restaurants.length > 0 ? restaurants : topRestaurants}
             renderItem={renderHotelCard}
             keyExtractor={(item) => item.id}
             horizontal

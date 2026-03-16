@@ -124,6 +124,32 @@ export const incrementViewCount = async (placeId) => {
     }
 };
 
+// Get places filtered by district
+export const getPlacesByDistrict = async (districtName) => {
+    if (!districtName) return [];
+    try {
+        console.log(`[PlacesService] Fetching places for district: ${districtName}`);
+        const placesRef = collection(db, 'places');
+        const q = query(
+            placesRef, 
+            where('geolocation.district', '==', districtName),
+            limit(20)
+        );
+        const snapshot = await getDocs(q);
+        
+        const places = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        // Filter out AR tests if any
+        return places.filter(place => !place.name || !place.name.toLowerCase().includes('ar test'));
+    } catch (error) {
+        console.error(`Error fetching places for district ${districtName}:`, error);
+        return [];
+    }
+};
+
 // Get single place details
 export const getPlaceDetails = async (placeId) => {
     try {

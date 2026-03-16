@@ -46,7 +46,9 @@ const HotelCard = ({ item, responsiveWidth, navigation }) => {
                 <View style={styles.locationRow}>
 
                     <Text style={styles.locationText} numberOfLines={1}>
-                        {item.location}
+                        {typeof item.location === 'object' 
+                          ? (item.location.address || item.location.district || "Sri Lanka") 
+                          : (item.location || "Sri Lanka")}
                     </Text>
                 </View>
 
