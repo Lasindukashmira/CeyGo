@@ -7,60 +7,41 @@ import {
   Image,
   StyleSheet,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 
-const NearbyAttractionsSection = () => {
-  const [attractions, setAttractions] = useState([
-    {
-      id: 1,
-      name: "Ancient Temple",
-      description: "Explore the rich history of this ancient temple.",
-      distance: "1.2 km",
-      rating: 4.8,
-      views: 124,
-      image: require("../assets/cpic/Beach.jpg"),
-      favorite: false,
-      badge: "Top Rated",
-    },
-    {
-      id: 2,
-      name: "Nature Park",
-      description: "Relax and enjoy the beauty of nature in this park.",
-      distance: "2.5 km",
-      rating: 4.5,
-      views: 98,
-      image: require("../assets/cpic/Beach.jpg"),
-      favorite: false,
-      badge: "Popular",
-    },
-    {
-      id: 3,
-      name: "Historic Museum",
-      description: "Discover historic artifacts and cultural exhibits.",
-      distance: "0.8 km",
-      rating: 4.7,
-      views: 150,
-      image: require("../assets/cpic/Beach.jpg"),
-      favorite: false,
-      badge: "Must Visit",
-    },
-  ]);
+const NearbyAttractionsSection = ({ attractions = [], loading = false, navigation }) => {
+  const [favorites, setFavorites] = useState([]);
 
   const toggleFavorite = (id) => {
-    setAttractions((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, favorite: !item.favorite } : item
-      )
+    setFavorites((prev) =>
+      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
     );
   };
 
   const handleAttractionPress = (item) => {
-    console.log("Attraction pressed:", item.name);
-    // Navigate to details screen
+    if (navigation) {
+      navigation.push("PlaceDetails", { place: item });
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Nearby Attractions</Text>
+        </View>
+        <ActivityIndicator size="large" color="#2c5aa0" style={{ marginVertical: 30 }} />
+      </View>
+    );
+  }
+
+  if (attractions.length === 0) {
+    return null; // Hide if no attractions
+  }
 
   return (
     <View style={styles.section}>
@@ -77,18 +58,22 @@ const NearbyAttractionsSection = () => {
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+            const isFavorite = favorites.includes(item.id);
+            const image = item.image_url || (item.image_urls && item.image_urls[0]) || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800";
+            
+            return (
           <TouchableOpacity
             style={styles.card}
             onPress={() => handleAttractionPress(item)}
             activeOpacity={0.9}
           >
             <View style={styles.imageContainer}>
-              <Image source={item.image} style={styles.image} />
+              <Image source={{ uri: image }} style={styles.image} />
               {/* Badge */}
-              {item.badge && (
+              {item.avgRating >= 4.5 && (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{item.badge}</Text>
+                  <Text style={styles.badgeText}>Top Rated</Text>
                 </View>
               )}
               {/* Favorite */}
@@ -97,9 +82,9 @@ const NearbyAttractionsSection = () => {
                 onPress={() => toggleFavorite(item.id)}
               >
                 <MaterialCommunityIcons
-                  name={item.favorite ? "heart" : "heart-outline"}
+                  name={isFavorite ? "heart" : "heart-outline"}
                   size={22}
-                  color={item.favorite ? "red" : "#fff"}
+                  color={isFavorite ? "red" : "#fff"}
                 />
               </TouchableOpacity>
             </View>
@@ -109,7 +94,7 @@ const NearbyAttractionsSection = () => {
                 {item.name}
               </Text>
               <Text style={styles.description} numberOfLines={2}>
-                {item.description}
+                {item.description || "Explore this beautiful destination near you."}
               </Text>
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
@@ -118,18 +103,19 @@ const NearbyAttractionsSection = () => {
                     size={16}
                     color="#2c5aa0"
                   />
-                  <Text style={styles.metaText}>{item.distance}</Text>
+                  <Text style={styles.metaText}>{item.geolocation?.district || 'Sri Lanka'}</Text>
                 </View>
                 <View style={styles.metaItem}>
                   <MaterialIcons name="star" size={16} color="#FFD700" />
                   <Text style={styles.metaText}>
-                    {item.rating} • {item.views} views
+                    {item.avgRating || item.rating || 0} • {item.Views || 0} views
                   </Text>
                 </View>
               </View>
             </View>
           </TouchableOpacity>
-        )}
+            );
+        }}
       />
     </View>
   );

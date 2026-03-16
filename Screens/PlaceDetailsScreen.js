@@ -24,9 +24,10 @@ import MapSection from "../Components/placeDetails/MapSection";
 import WeatherSection from "../Components/placeDetails/WeatherSection";
 import WeatherModal from "../Components/placeDetails/WeatherModal";
 import { RefreshControl } from "react-native";
-import { incrementViewCount, getPlaceDetails, getTopPlaceReview } from "../Services/PlacesService";
+import { incrementViewCount, getPlaceDetails, getTopPlaceReview, getPlacesByDistrict } from "../Services/PlacesService";
 import { getWeatherData } from "../Services/WeatherService";
 import { getNearbyHotels } from "../Services/TripAdvisorService";
+import { getUnifiedServices } from "../Services/ExploreService";
 
 import { useAuth } from "../AuthContext";
 
@@ -53,9 +54,16 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
   const [weatherData, setWeatherData] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
 
-  // Nearby Hotels state - real API data
   const [nearbyHotels, setNearbyHotels] = useState([]);
   const [hotelsLoading, setHotelsLoading] = useState(true);
+
+  // Nearby Tours state
+  const [nearbyTours, setNearbyTours] = useState([]);
+  const [toursLoading, setToursLoading] = useState(true);
+
+  // Nearby Attractions state
+  const [nearbyAttractions, setNearbyAttractions] = useState([]);
+  const [attractionsLoading, setAttractionsLoading] = useState(true);
 
   const fetchPlaceData = async () => {
     if (place.id) {
@@ -75,7 +83,13 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchPlaceData();
+    await Promise.all([
+      fetchPlaceData(),
+      fetchWeatherData(),
+      fetchNearbyHotels(),
+      fetchNearbyTours(),
+      fetchNearbyAttractions(),
+    ]);
     setRefreshing(false);
   };
 
@@ -98,6 +112,12 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
 
     // Fetch nearby hotels
     fetchNearbyHotels();
+
+    // Fetch nearby tours
+    fetchNearbyTours();
+
+    // Fetch nearby attractions
+    fetchNearbyAttractions();
   }, []);
 
   const fetchNearbyHotels = async () => {
@@ -111,6 +131,32 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
       console.error('Error fetching hotels:', error);
     }
     setHotelsLoading(false);
+  };
+
+  const fetchNearbyTours = async () => {
+    setToursLoading(true);
+    try {
+      const district = place.geolocation?.district || 'Sri Lanka';
+      const response = await getUnifiedServices('tour', { district, limitCount: 5 });
+      setNearbyTours(response.results || []);
+    } catch (error) {
+      console.error('Error fetching tours:', error);
+    }
+    setToursLoading(false);
+  };
+
+  const fetchNearbyAttractions = async () => {
+    setAttractionsLoading(true);
+    try {
+      const district = place.geolocation?.district || 'Sri Lanka';
+      const allAttractions = await getPlacesByDistrict(district);
+      // Filter out current place
+      const filtered = allAttractions.filter(item => item.id !== place.id);
+      setNearbyAttractions(filtered);
+    } catch (error) {
+      console.error('Error fetching attractions:', error);
+    }
+    setAttractionsLoading(false);
   };
 
   const fetchWeatherData = async () => {
@@ -369,8 +415,15 @@ const PlaceDetailsScreen = ({ route, navigation }) => {
               loading={hotelsLoading}
               navigation={navigation}
             />
-            <ToursSection />
-            <NearbyAttractionsSection />
+            <ToursSection 
+              tours={nearbyTours}
+              loading={toursLoading}
+            />
+            <NearbyAttractionsSection 
+              attractions={nearbyAttractions}
+              loading={attractionsLoading}
+              navigation={navigation}
+            />
             <ReviewsSection
               placeId={place.id}
               userId={user?.uid}

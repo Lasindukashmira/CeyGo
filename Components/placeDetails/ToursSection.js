@@ -6,10 +6,11 @@ import {
   ImageBackground,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
-const ThingsToDoSection = () => {
+const ToursSection = ({ tours = [], loading = false }) => {
   const [favorites, setFavorites] = useState([]);
 
   const toggleFavorite = (id) => {
@@ -18,53 +19,28 @@ const ThingsToDoSection = () => {
     );
   };
 
-  const tours = [
-    {
-      id: 1,
-      title: "Snorkeling Adventure",
-      owner: "OceanX Tours",
-      description:
-        "Explore coral reefs with professional guides and enjoy a day of activities.",
-      rating: 4.8,
-      reviews: 230,
-      distance: "1.2 km",
-      price: 45,
-      views: "2.1k",
-      badge: "Top Rated",
-      image:
-        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800",
-    },
-    {
-      id: 2,
-      title: "Hiking Experience",
-      owner: "Mountain Crew",
-      description:
-        "Guided hike through scenic mountain trails with local experts.",
-      rating: 4.6,
-      reviews: 120,
-      distance: "3.5 km",
-      price: 30,
-      views: "980",
-      badge: "Popular",
-      image:
-        "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800",
-    },
-  ];
-
   const renderTourCard = ({ item }) => {
     const isFavorite = favorites.includes(item.id);
+
+    // Handle data structure differences between Firestore and API
+    const image = item.image || item.image_url || (item.image_urls && item.image_urls[0]) || "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800";
+    const price = item.pricing?.priceLKR || item.priceLKR || (item.price ? Math.round(item.price * 300) : null) || 0;
+    const rating = item.avgRating || item.overall_rating || item.rating || 4.5;
+    const reviews = item.reviewCount || item.reviews || 0;
 
     return (
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.9}
-        onPress={() => console.log("Tour pressed:", item.title)}
+        onPress={() => console.log("Tour pressed:", item.name)}
       >
-        <ImageBackground source={{ uri: item.image }} style={styles.image}>
+        <ImageBackground source={{ uri: image }} style={styles.image}>
           {/* Badge */}
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{item.badge}</Text>
-          </View>
+          {item.tags && item.tags.length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{item.tags[0]}</Text>
+            </View>
+          )}
 
           {/* Favorite */}
           <TouchableOpacity
@@ -80,28 +56,27 @@ const ThingsToDoSection = () => {
 
           {/* Overlay for info */}
           <View style={styles.overlay}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.owner}>by {item.owner}</Text>
+            <Text style={styles.title} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.owner}>{item.location && typeof item.location === 'string' ? item.location : 'Sri Lanka'}</Text>
 
             <Text style={styles.description} numberOfLines={2}>
-              {item.description}
+              {item.description || "Discover the beauty of this location with our expert guides."}
             </Text>
 
             {/* Ratings & Distance */}
             <View style={styles.row}>
               <MaterialIcons name="star" size={16} color="#FFD700" />
               <Text style={styles.rating}>
-                {item.rating} ({item.reviews} reviews)
+                {rating} ({reviews} reviews)
               </Text>
-              <Text style={styles.distance}>• {item.distance} away</Text>
             </View>
 
             {/* Price & Views */}
             <View style={styles.bottomRow}>
-              <Text style={styles.price}>${item.price} / person</Text>
+              <Text style={styles.price}>Rs. {price.toLocaleString()}</Text>
               <View style={styles.viewsContainer}>
                 <MaterialIcons name="visibility" size={18} color="#fff" />
-                <Text style={styles.views}>{item.views} views</Text>
+                <Text style={styles.views}>{item.Views || 0} views</Text>
               </View>
             </View>
           </View>
@@ -110,11 +85,26 @@ const ThingsToDoSection = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Tours & Experiences</Text>
+        </View>
+        <ActivityIndicator size="large" color="#2c5aa0" style={{ marginVertical: 30 }} />
+      </View>
+    );
+  }
+
+  if (tours.length === 0) {
+    return null; // Hide if no tours
+  }
+
   return (
     <View style={styles.section}>
       {/* Section Header */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Things to Do</Text>
+        <Text style={styles.sectionTitle}>Tours & Experiences</Text>
         <TouchableOpacity>
           <Text style={styles.viewAllText}>View All</Text>
         </TouchableOpacity>
@@ -256,4 +246,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ThingsToDoSection;
+export default ToursSection;
