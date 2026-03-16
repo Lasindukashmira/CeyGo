@@ -384,6 +384,14 @@ const ProfileScreen = ({ navigation }) => {
                             <MaterialIcons name="chevron-right" size={24} color="#ccc" />
                         </TouchableOpacity>
                         <View style={styles.inputDivider} />
+                        <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate("OnboardingPreferences", { isEditMode: true })}>
+                            <View style={styles.actionInfo}>
+                                <MaterialIcons name="favorite-border" size={20} color="#e53935" />
+                                <Text style={styles.actionLabel}>Travel Interests</Text>
+                            </View>
+                            <MaterialIcons name="chevron-right" size={24} color="#ccc" />
+                        </TouchableOpacity>
+                        <View style={styles.inputDivider} />
                         <TouchableOpacity style={styles.actionRow} onPress={handleLogout}>
                             <View style={styles.actionInfo}>
                                 <MaterialIcons name="logout" size={20} color="#e53935" />

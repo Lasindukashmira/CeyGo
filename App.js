@@ -10,9 +10,11 @@ import PlaceDetailsScreen from "./Screens/PlaceDetailsScreen";
 import DistrictDetailsScreen from "./Screens/DistrictDetailsScreen";
 import HotelDetailsScreen from "./Screens/HotelDetailsScreen";
 import RestaurantDetailsScreen from "./Screens/RestaurantDetailsScreen";
+import TourDetailsScreen from "./Screens/TourDetailsScreen";
 import ProfileScreen from "./Screens/ProfileScreen";
 import FavouritesScreen from "./Screens/FavouritesScreen";
 import TripPlanDetailScreen from "./Screens/TripPlanDetailScreen";
+import OnboardingPreferencesScreen from "./Screens/OnboardingPreferencesScreen";
 
 // Service Provider Screens
 import ProviderIntroScreen from "./Screens/ServiceProvider/ProviderIntroScreen";
@@ -79,6 +81,21 @@ function Root() {
           <Stack.Screen
             name="Profile"
             component={ProfileScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="OnboardingPreferences"
+            component={OnboardingPreferencesScreen}
+            options={{
+              headerShown: false,
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name="TourDetails"
+            component={TourDetailsScreen}
             options={{
               headerShown: false,
             }}

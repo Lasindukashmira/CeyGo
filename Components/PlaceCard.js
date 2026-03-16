@@ -8,16 +8,15 @@ import {
   Dimensions,
 } from "react-native";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { getAuth } from "firebase/auth";
 import { checkIsFavorite, togglePlaceFavorite } from "../Services/PlacesService";
 import { useIsFocused } from "@react-navigation/native";
+import { useAuth } from "../AuthContext";
 
 const { width } = Dimensions.get("window");
 
 const PlaceCard = ({ item, onPress, getCategoryIcon, rank, navigation }) => {
   const [isFavorited, setIsFavorited] = useState(false);
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const { user } = useAuth();
   const isFocused = useIsFocused(); // Re-render triggers when screen comes into focus
 
   // Check status on mount AND focus

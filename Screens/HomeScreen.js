@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { catergory, districs, tempTop10, topHotels, topRestaurants } from "../constData";
-import { getAuth } from "firebase/auth";
 import {
   getTopPlaces,
   checkIsFavorite,
@@ -100,7 +99,7 @@ const HomeScreen = ({ navigation }) => {
 
   // Data Loading
   const fetchPlaces = async (force = false) => {
-    const places = await getTopPlaces(force);
+    const places = await getTopPlaces(user?.preferences || [], force);
     if (places && places.length > 0) {
       setTopPlaces(places);
     }
@@ -149,7 +148,7 @@ const HomeScreen = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [user?.preferences]);
 
   // Auto-scroll hero carousel
   useEffect(() => {

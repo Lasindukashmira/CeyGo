@@ -629,7 +629,7 @@ const HotelDetailsScreen = ({ route, navigation }) => {
                                             longitude: hotel.gps_coordinates.longitude,
                                         }}
                                         title={hotel.name}
-                                        description={hotel.address || hotel.location}
+                                        description={hotel.address || hotel.location?.address || hotel.location}
                                     />
                                 </MapView>
                             ) : (

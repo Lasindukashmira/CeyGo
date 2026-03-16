@@ -87,12 +87,17 @@ const RegisterScreen = ({ navigation }) => {
       await register(formData.email, formData.password, {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        phone: formData.phone,
         role: "tourist", // default role
       });
 
-      Alert.alert("Success", "Registration successful!", [{ text: "OK" }]);
-      // Auth context will redirect
+      // Wait briefly for auth state to update, then navigate
+      setTimeout(() => {
+        // Since we are inside RegisterScreen, we explicitly route them to the new onboarding screen
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "OnboardingPreferences" }],
+        });
+      }, 500);
     } catch (error) {
       setIsRegistering(false);
       Alert.alert("Registration Error", error.message);

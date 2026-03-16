@@ -19,165 +19,185 @@ import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { getPagedPlaces, searchDestinations, checkIsFavorite, togglePlaceFavorite } from "../Services/PlacesService";
-import { getAuth } from "firebase/auth";
+import { getUnifiedServices } from "../Services/ExploreService";
+import { useAuth } from "../AuthContext";
 
 const { width } = Dimensions.get("window");
 
 const ExploreScreen = () => {
   const navigation = useNavigation();
-  const [selectedTab, setSelectedTab] = useState("All");
+  const { user } = useAuth();
+  const [selectedTab, setSelectedTab] = useState("Destinations");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Data States
   const [destinations, setDestinations] = useState([]);
-  const [filteredDestinations, setFilteredDestinations] = useState([]); // For search
+  const [filteredDestinations, setFilteredDestinations] = useState([]);
+
+  const [hotels, setHotels] = useState([]);
+  const [tours, setTours] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [lastDoc, setLastDoc] = useState(null);
   const [hasMore, setHasMore] = useState(true);
-  const [refreshing, setRefreshing] = useState(false); // New State
 
-  // Static Data for Hotels & Tours (Dummy)
-  const hotels = [
-    {
-      id: "h1",
-      title: "Galle Fort Hotel",
-      location: "Galle, Southern Province",
-      price: "$200/night",
-      rating: 4.8,
-      reviews: 320,
-      image: "https://cf.bstatic.com/xdata/images/hotel/max1024x768/48083042.jpg?k=f63901413a967528e08d2482348a2745339f403986326847171d3778a8be656b&o=&hp=1",
-      badge: "Luxury"
-    },
-    {
-      id: "h2",
-      title: "98 Acres Resort & Spa",
-      location: "Ella, Uva Province",
-      price: "$250/night",
-      rating: 4.9,
-      reviews: 500,
-      image: "https://www.resort98acres.com/wp-content/uploads/2022/10/98-Acres-Best-Resorts-in-Ella-2.jpg",
-      badge: "Nature"
-    }
-  ];
+  // Tracking pagination for different tabs
+  const [paginationState, setPaginationState] = useState({
+    Destinations: { lastDoc: null, hasMore: true, apiOffset: 0 },
+    Hotels: { lastDoc: null, hasMore: true, apiOffset: 0 },
+    Tours: { lastDoc: null, hasMore: true, apiOffset: 0 },
+    Restaurants: { lastDoc: null, hasMore: true, apiOffset: 0 }
+  });
 
-  const tours = [
-    {
-      id: "t1",
-      title: "Whale Watching in Mirissa",
-      duration: "5 Hours",
-      price: "$50/person",
-      rating: 4.7,
-      reviews: 150,
-      image: "https://www.lanka-excursions-holidays.com/images/whale-watching-mirissa-sri-lanka.jpg",
-      badge: "Adventure"
-    },
-    {
-      id: "t2",
-      title: "Yala Safari Jeep Tour",
-      duration: "4 Hours",
-      price: "$80/jeep",
-      rating: 4.6,
-      reviews: 210,
-      image: "https://www.lanka-excursions-holidays.com/images/yala-national-park-safari-sri-lanka.jpg",
-      badge: "Wildlife"
-    },
-    {
-      id: "t3",
-      title: "Sigiriya Rock Climb",
-      duration: "3 Hours",
-      price: "$35/person",
-      rating: 4.8,
-      reviews: 600,
-      image: "https://www.srilanka-places.com/images/sigiriya-lion-rock.jpg",
-      badge: "Hiking"
-    }
-  ];
+  const [refreshing, setRefreshing] = useState(false);
+  const [filters, setFilters] = useState({
+    district: "",
+    minPrice: null,
+    maxPrice: null,
+    minRating: 0,
+    category: ""
+  });
 
   // --- Fetch Logic ---
   const fetchDestinations = async (isLoadMore = false) => {
     if (isLoadMore) {
-      if (loadingMore || !hasMore) return;
+      if (loadingMore || !paginationState.Destinations.hasMore) return;
       setLoadingMore(true);
     } else {
       setLoading(true);
     }
 
-    // Pass null if not loading more (reset)
-    const result = await getPagedPlaces(isLoadMore ? lastDoc : null, 10);
-
-    if (result.places.length < 10) setHasMore(false);
+    const res = await getPagedPlaces(isLoadMore ? paginationState.Destinations.lastDoc : null, 10);
 
     if (isLoadMore) {
-      setDestinations(prev => [...prev, ...result.places]);
-      setFilteredDestinations(prev => [...prev, ...result.places]);
+      setDestinations(prev => [...prev, ...res.places]);
+      setFilteredDestinations(prev => [...prev, ...res.places]);
     } else {
-      setDestinations(result.places);
-      setFilteredDestinations(result.places);
-      setHasMore(true); // Reset hasMore on full refresh
+      setDestinations(res.places);
+      setFilteredDestinations(res.places);
     }
 
-    setLastDoc(result.lastDoc);
+    setPaginationState(prev => ({
+      ...prev,
+      Destinations: { lastDoc: res.lastDoc, hasMore: res.places.length === 10 }
+    }));
+
+    setLoading(false);
+    setLoadingMore(false);
+  };
+
+  const fetchServices = async (type, isLoadMore = false) => {
+    const tabName = type.charAt(0).toUpperCase() + type.slice(1) + "s";
+    const currentPaginationState = paginationState[tabName];
+
+    if (isLoadMore) {
+      if (loadingMore || !currentPaginationState?.hasMore) return;
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
+    const res = await getUnifiedServices(type, {
+      district: filters.district,
+      filters: filters,
+      limitCount: 10,
+      isLoadMore: isLoadMore,
+      lastDoc: isLoadMore ? currentPaginationState?.lastDoc : null,
+      apiOffset: isLoadMore ? currentPaginationState?.apiOffset : 0,
+      userPreferences: user?.preferences || []
+    });
+
+    console.log(`[ExploreScreen] Fetched ${res.results.length} ${type}s`);
+    if (type === 'tour') {
+      console.log(`[ExploreScreen] Tours data sample:`, res.results.map(t => t.name).slice(0, 3));
+    }
+
+    const setterFn = type === 'hotel' ? setHotels : type === 'restaurant' ? setRestaurants : setTours;
+
+    if (isLoadMore) {
+      setterFn(prev => {
+        const nextSet = [...prev, ...res.results];
+        const uniqueIds = new Set();
+        return nextSet.filter(item => {
+          if (!uniqueIds.has(item.id)) {
+            uniqueIds.add(item.id);
+            return true;
+          }
+          return false;
+        });
+      });
+    } else {
+      setterFn(res.results);
+    }
+
+    setPaginationState(prev => ({
+      ...prev,
+      [tabName]: {
+        lastDoc: res.lastDoc,
+        apiOffset: res.apiOffset,
+        hasMore: res.hasMore
+      }
+    }));
+
     setLoading(false);
     setLoadingMore(false);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    setLastDoc(null);
-    setHasMore(true);
-    await fetchDestinations(false);
+    setPaginationState({
+      Destinations: { lastDoc: null, hasMore: true, apiOffset: 0 },
+      Hotels: { lastDoc: null, hasMore: true, apiOffset: 0 },
+      Tours: { lastDoc: null, hasMore: true, apiOffset: 0 },
+      Restaurants: { lastDoc: null, hasMore: true, apiOffset: 0 }
+    });
+
+    if (selectedTab === "Destinations") await fetchDestinations(false);
+    if (selectedTab === "Hotels") await fetchServices('hotel', false);
+    if (selectedTab === "Restaurants") await fetchServices('restaurant', false);
+    if (selectedTab === "Tours") await fetchServices('tour', false);
+
     setRefreshing(false);
   };
 
   useEffect(() => {
     fetchDestinations(false);
+    fetchServices('hotel', false);
+    fetchServices('tour', false);
+    fetchServices('restaurant', false);
   }, []);
 
-  // --- Search Logic ---
   // --- Search Logic ---
   const searchTimeout = useRef(null);
 
   const performSearch = async (text) => {
     setLoading(true);
 
-    // 1. Search Destinations (Firestore)
-    let matchedDestinations = [];
-    if (selectedTab === "All" || selectedTab === "Destinations") {
-      matchedDestinations = await searchDestinations(text);
-    }
+    // Run parallel searches via our unified service + destination search
+    const [destResults, hotelResults, tourResults, restResults] = await Promise.all([
+      searchDestinations(text),
+      getUnifiedServices('hotel', { searchQuery: text, limitCount: 5 }),
+      getUnifiedServices('tour', { searchQuery: text, limitCount: 5 }),
+      getUnifiedServices('restaurant', { searchQuery: text, limitCount: 5 })
+    ]);
 
-    // 2. Search Hotels (Local Dummy)
-    let matchedHotels = [];
-    if (selectedTab === "All" || selectedTab === "Hotels") {
-      matchedHotels = hotels.filter(h =>
-        h.title.toLowerCase().includes(text.toLowerCase()) ||
-        h.location.toLowerCase().includes(text.toLowerCase()) ||
-        h.badge.toLowerCase().includes(text.toLowerCase())
-      );
-    }
+    const results = {
+      destinations: destResults,
+      hotels: hotelResults.results,
+      tours: tourResults.results,
+      restaurants: restResults.results
+    };
 
-    // 3. Search Tours (Local Dummy)
-    let matchedTours = [];
-    if (selectedTab === "All" || selectedTab === "Tours") {
-      matchedTours = tours.filter(t =>
-        t.title.toLowerCase().includes(text.toLowerCase()) ||
-        t.badge.toLowerCase().includes(text.toLowerCase())
-      );
-    }
-
-    // Update States
-    setFilteredDestinations(matchedDestinations);
-    // For local lists, we might need separate matching states if we want to show them in "All"
-    // But current structure uses 'filteredDestinations' primarily for the list view.
-    // Let's create a unified search result structure for "All".
-
+    setSearchResults(results);
+    setFilteredDestinations(destResults);
     setLoading(false);
-    return { destinations: matchedDestinations, hotels: matchedHotels, tours: matchedTours };
+    return results;
   };
 
-  const [searchResults, setSearchResults] = useState({ destinations: [], hotels: [], tours: [] });
+  const [searchResults, setSearchResults] = useState({ destinations: [], hotels: [], tours: [], restaurants: [] });
 
   const handleSearch = (text) => {
     setSearchQuery(text);
@@ -186,7 +206,7 @@ const ExploreScreen = () => {
     if (!text.trim()) {
       // Reset to default views
       setFilteredDestinations(destinations);
-      setSearchResults({ destinations: [], hotels: [], tours: [] });
+      setSearchResults({ destinations: [], hotels: [], tours: [], restaurants: [] });
       return;
     }
 
@@ -201,7 +221,7 @@ const ExploreScreen = () => {
   useEffect(() => {
     if (searchQuery.trim()) {
       handleSearch(searchQuery);
-    } else if (selectedTab !== "All" && selectedTab !== "Destinations") {
+    } else if (selectedTab !== "Destinations") {
       // If switching to static tabs (Hotels/Tours) without search, no fetch needed
     } else if (destinations.length === 0) {
       // If switching back to destinations and empty, fetch
@@ -245,8 +265,7 @@ const ExploreScreen = () => {
 
   const DestinationCardVertical = ({ item }) => {
     const [isFavorited, setIsFavorited] = useState(false);
-    const auth = getAuth();
-    const user = auth.currentUser;
+    const { user } = useAuth();
     const isFocused = useIsFocused();
 
     useEffect(() => {
@@ -343,109 +362,55 @@ const ExploreScreen = () => {
     );
   };
 
+  // --- Navigation Helpers ---
+  const handlePress = (item, type) => {
+    const itemType = type || item.type;
+    console.log(`Navigating to ${itemType} details:`, item.id);
+
+    if (itemType === 'hotel' || itemType === 'Hotel') {
+      navigation.navigate("HotelDetails", { hotel: item });
+    } else if (itemType === 'restaurant' || itemType === 'Restaurant') {
+      navigation.navigate("RestaurantDetails", { restaurant: item });
+    } else if (itemType === 'tour' || itemType === 'Tour') {
+      navigation.navigate("TourDetails", { tour: item });
+    } else {
+      navigation.navigate("PlaceDetails", { place: item });
+    }
+  };
+
   const FeatureCard = ({ item, type }) => (
-    <TouchableOpacity style={styles.featureCard} activeOpacity={0.9}>
-      <Image source={{ uri: item.image }} style={styles.featureImage} />
-      <View style={[styles.typeBadge, { backgroundColor: type === 'Hotel' ? '#2c5aa0' : '#FF6B6B' }]}>
+    <TouchableOpacity
+      style={styles.featureCard}
+      activeOpacity={0.9}
+      onPress={() => handlePress(item, type)}
+    >
+      <Image source={{ uri: item.image || item.coverImage }} style={styles.featureImage} />
+      <View style={[styles.typeBadge, { backgroundColor: type === 'Hotel' ? '#2c5aa0' : type === 'Restaurant' ? '#ff9800' : '#FF6B6B' }]}>
         <Text style={styles.typeText}>{type}</Text>
       </View>
+      {item.source === 'ceygo' && (
+        <View style={styles.sourceBadge}>
+          <MaterialCommunityIcons name="star-circle" size={12} color="#fff" />
+          <Text style={styles.sourceText}>CeyGo Prio</Text>
+        </View>
+      )}
       <View style={styles.featureContent}>
-        <Text style={styles.featureTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={styles.featureTitle} numberOfLines={1}>{item.name || item.title}</Text>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={styles.featureDetail}>{type === 'Hotel' ? item.location : item.duration}</Text>
+          <Text style={styles.featureDetail}>{type === 'Hotel' ? (item.location?.district || item.location) : (item.duration || item.location?.district)}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <MaterialIcons name="star" size={14} color="#f4c430" />
-            <Text style={[styles.featureDetail, { marginLeft: 2 }]}>{item.rating}</Text>
+            <Text style={[styles.featureDetail, { marginLeft: 2 }]}>{item.rating || item.avgRating || 0}</Text>
           </View>
         </View>
-        <Text style={styles.featurePrice}>{item.price}</Text>
+        <Text style={styles.featurePrice}>
+          {item.pricing?.priceLKR ? `Rs. ${item.pricing.priceLKR.toLocaleString()}` : item.price || "Contact for Price"}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 
   // --- Render Functions ---
-  const renderAllTab = () => {
-    const isSearching = !!searchQuery.trim();
-    const displayDestinations = isSearching ? searchResults.destinations : destinations;
-    const displayHotels = isSearching ? searchResults.hotels : hotels;
-    const displayTours = isSearching ? searchResults.tours : tours;
-
-    if (isSearching && !displayDestinations.length && !displayHotels.length && !displayTours.length && !loading) {
-      return (
-        <View style={{ padding: 20, alignItems: 'center' }}>
-          <Text style={{ color: '#888', marginTop: 20 }}>No results found for "{searchQuery}"</Text>
-        </View>
-      );
-    }
-
-    return (
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2c5aa0"]} />}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Destinations Section */}
-        {(displayDestinations.length > 0) && (
-          <>
-            <SectionTitle title={isSearching ? "Matching Destinations" : "Popular Destinations"} showAll={!isSearching} onPressAll={() => setSelectedTab("Destinations")} />
-
-            {/* Default View: Horizontal Carousel */}
-            {!isSearching && (
-              <FlatList
-                horizontal
-                data={displayDestinations.slice(0, 5)}
-                renderItem={({ item }) => <DestinationCardHorizontal item={item} />}
-                keyExtractor={item => item.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 15 }}
-                style={{ marginBottom: 25 }}
-              />
-            )}
-
-            {/* Search View: Vertical List (No nested FlatList) */}
-            {isSearching && displayDestinations.map(item => (
-              <View key={item.id} style={{ paddingHorizontal: 15 }}>
-                <DestinationCardVertical item={item} />
-              </View>
-            ))}
-          </>
-        )}
-
-        {/* Hotels Section */}
-        {(displayHotels.length > 0) && (
-          <>
-            <SectionTitle title={isSearching ? "Matching Hotels" : "Top Rated Hotels"} showAll={!isSearching} onPressAll={() => setSelectedTab("Hotels")} />
-            <FlatList
-              horizontal
-              data={displayHotels}
-              renderItem={({ item }) => <FeatureCard item={item} type="Hotel" />}
-              keyExtractor={item => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 15 }}
-              style={{ marginBottom: 25 }}
-            />
-          </>
-        )}
-
-        {/* Tours Section */}
-        {(displayTours.length > 0) && (
-          <>
-            <SectionTitle title={isSearching ? "Matching Tours" : "Trending Experiences"} showAll={!isSearching} onPressAll={() => setSelectedTab("Tours")} />
-            <FlatList
-              horizontal
-              data={displayTours}
-              renderItem={({ item }) => <FeatureCard item={item} type="Tour" />}
-              keyExtractor={item => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 15 }}
-              style={{ marginBottom: 25 }}
-            />
-          </>
-        )}
-      </ScrollView>
-    );
-  };
-
   const renderDestinationsTab = () => (
     <FlatList
       data={filteredDestinations}
@@ -480,20 +445,45 @@ const ExploreScreen = () => {
     <FlatList
       data={data}
       renderItem={({ item }) => (
-        <TouchableOpacity style={styles.cardVertical} activeOpacity={0.95}>
-          <Image source={{ uri: item.image }} style={styles.cardImageV} />
-          <View style={styles.cardContentV}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={styles.cardTitleV}>{item.title}</Text>
-              <Text style={styles.ratingTextV}>⭐ {item.rating}</Text>
+        <TouchableOpacity
+          style={styles.cardVertical}
+          activeOpacity={0.95}
+          onPress={() => handlePress(item, type)}
+        >
+          <Image source={{ uri: item.image || item.coverImage }} style={styles.cardImageV} />
+          <View style={styles.cardGradientOverlay} />
+
+          {item.source === 'ceygo' && (
+            <View style={styles.cardTopRow}>
+              <View style={[styles.categoryBadge, { backgroundColor: 'rgba(76, 175, 80, 0.9)' }]}>
+                <Text style={styles.categoryTextBadge}>CeyGo Provider</Text>
+              </View>
             </View>
-            <Text style={styles.cardLocV}>{type === 'Hotel' ? item.location : item.duration}</Text>
-            <Text style={[styles.priceText, { marginTop: 5 }]}>{item.price}</Text>
+          )}
+
+          <View style={styles.cardContentOverlay}>
+            <View style={styles.headerRow}>
+              <Text style={styles.cardTitleV} numberOfLines={1}>{item.name}</Text>
+              <View style={styles.ratingPill}>
+                <MaterialIcons name="star" size={12} color="#FFD700" />
+                <Text style={styles.ratingTextV}>{item.rating || item.avgRating || 0}</Text>
+              </View>
+            </View>
+            <View style={styles.locRow}>
+              <MaterialIcons name="location-on" size={14} color="#ddd" />
+              <Text style={styles.cardLocV} numberOfLines={1}>{item.location?.address || item.location}</Text>
+            </View>
+            <Text style={styles.priceTagV}>
+              {item.pricing?.priceLKR ? `Rs. ${item.pricing.priceLKR.toLocaleString()}` : (item.price || "Contact for Price")}
+            </Text>
           </View>
         </TouchableOpacity>
       )}
       style={{ padding: 15 }}
       contentContainerStyle={{ paddingBottom: 100 }}
+      onEndReached={() => fetchServices(type.toLowerCase(), true)}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#2c5aa0" style={{ marginVertical: 20 }} /> : null}
     />
   );
 
@@ -520,7 +510,7 @@ const ExploreScreen = () => {
       {/* Tabs */}
       <View style={{ paddingHorizontal: 15, marginBottom: 15 }}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {["All", "Destinations", "Hotels", "Tours"].map(tab => (
+          {["Destinations", "Hotels", "Restaurants", "Tours"].map(tab => (
             <TouchableOpacity
               key={tab}
               style={[styles.tab, selectedTab === tab && styles.tabActive]}
@@ -540,10 +530,10 @@ const ExploreScreen = () => {
           </View>
         ) : (
           <>
-            {selectedTab === "All" && renderAllTab()}
             {selectedTab === "Destinations" && renderDestinationsTab()}
-            {selectedTab === "Hotels" && renderFullList(searchQuery ? searchResults.hotels : hotels, "Hotel")}
-            {selectedTab === "Tours" && renderFullList(searchQuery ? searchResults.tours : tours, "Tour")}
+            {selectedTab === "Hotels" && renderFullList(searchQuery.trim() ? searchResults.hotels : hotels, "Hotel")}
+            {selectedTab === "Restaurants" && renderFullList(searchQuery.trim() ? searchResults.restaurants : restaurants, "Restaurant")}
+            {selectedTab === "Tours" && renderFullList(searchQuery.trim() ? searchResults.tours : tours, "Tour")}
           </>
         )}
       </View>
@@ -559,23 +549,52 @@ const ExploreScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.filterLabel}>Type</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-              {["Beach", "Mountain", "Nature", "Historical"].map((opt) => (
-                <View key={opt} style={styles.filterChip}>
-                  <Text>{opt}</Text>
-                </View>
-              ))}
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* District Filter */}
+              <Text style={styles.filterLabel}>District</Text>
+              <TextInput
+                style={styles.districtInput}
+                placeholder="e.g. Galle, Kandy, Colombo"
+                value={filters.district}
+                onChangeText={(text) => setFilters(prev => ({ ...prev, district: text }))}
+              />
 
-            <Text style={styles.filterLabel}>Price Range</Text>
-            <View style={{ height: 40, backgroundColor: '#f0f0f0', borderRadius: 8, marginBottom: 20, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: '#999' }}>Slider Placeholder</Text>
-            </View>
+              {/* Rating Filter */}
+              <Text style={styles.filterLabel}>Minimum Rating</Text>
+              <View style={styles.ratingFilterRow}>
+                {[3, 3.5, 4, 4.5].map(r => (
+                  <TouchableOpacity
+                    key={r}
+                    style={[styles.ratingChip, filters.minRating === r && styles.activeChip]}
+                    onPress={() => setFilters(prev => ({ ...prev, minRating: r }))}
+                  >
+                    <Text style={[styles.chipText, filters.minRating === r && styles.activeChipText]}>{r}+ ⭐</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <TouchableOpacity style={styles.applyBtn} onPress={() => setShowFilterModal(false)}>
-              <Text style={styles.applyBtnText}>Apply Filters</Text>
-            </TouchableOpacity>
+              {/* Type Tags (Optional/Dummy for now) */}
+              <Text style={styles.filterLabel}>Categories</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+                {["Beach", "Mountain", "Nature", "Historical"].map((opt) => (
+                  <View key={opt} style={styles.filterChip}>
+                    <Text style={{ color: '#666' }}>{opt}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={styles.applyBtn}
+                onPress={() => {
+                  setShowFilterModal(false);
+                  onRefresh(); // Trigger re-fetch with new filters
+                }}
+              >
+                <Text style={styles.applyBtnText}>Apply Filters</Text>
+              </TouchableOpacity>
+
+              <View style={{ height: 20 }} />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -786,23 +805,97 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingBottom: 10,
     shadowColor: '#000',
-    opacity: 0.9,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 2,
   },
   featureImage: { width: '100%', height: 100, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-  typeBadge: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  typeBadge: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, zIndex: 1 },
   typeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  sourceBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1
+  },
+  sourceText: { color: '#fff', fontSize: 9, fontWeight: 'bold', marginLeft: 2 },
   featureContent: { padding: 8 },
   featureTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 3 },
   featureDetail: { fontSize: 11, color: '#666' },
   featurePrice: { fontSize: 12, fontWeight: 'bold', color: '#2c5aa0', marginTop: 4 },
-
+  priceTagV: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 5,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2
+  },
+  // Filter Modal Styles
+  districtInput: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#eee'
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10
+  },
+  ratingFilterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 30
+  },
+  ratingChip: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#eee'
+  },
+  activeChip: {
+    backgroundColor: '#2c5aa0',
+    borderColor: '#2c5aa0'
+  },
+  chipText: {
+    color: '#666',
+    fontWeight: '600'
+  },
+  activeChipText: {
+    color: '#fff'
+  },
+  applyBtn: {
+    backgroundColor: '#2c5aa0',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center'
+  },
+  applyBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold'
+  },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 25, minHeight: 400 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333' },
-  filterLabel: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 10 },
   filterChip: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f0f0', borderWidth: 1, borderColor: '#ddd' },
   applyBtn: { backgroundColor: '#2c5aa0', padding: 15, borderRadius: 15, alignItems: 'center', marginTop: 10 },
   applyBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },

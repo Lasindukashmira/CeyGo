@@ -68,6 +68,7 @@ const TripPlanDetailScreen = ({ route, navigation }) => {
     const tips = plan.tips || [];
     const packingList = plan.packingList || [];
     const hotelOptions = plan.hotelOptions || [];
+    const localInsights = plan.localInsights || null;
     const currentDay = dailyPlan[activeDay] || {};
 
     const handleShare = async () => {
@@ -504,6 +505,63 @@ const TripPlanDetailScreen = ({ route, navigation }) => {
         );
     };
 
+    // ========= Local Insights (New AI Feature) =========
+    const renderLocalInsights = () => {
+        if (!localInsights) return null;
+
+        const insightItems = [
+            {
+                title: "Hidden Gem",
+                text: localInsights.hiddenGem,
+                icon: "diamond-stone",
+                color: COLORS.accent,
+                bg: "rgba(139, 92, 246, 0.08)"
+            },
+            {
+                title: "Cultural Norm",
+                text: localInsights.culturalNorm,
+                icon: "hand-heart",
+                color: COLORS.primary,
+                bg: "rgba(44, 90, 160, 0.08)"
+            },
+            {
+                title: "Tourist Advisory",
+                text: localInsights.scamWarning,
+                icon: "shield-alert-outline",
+                color: "#EF4444",
+                bg: "rgba(239, 68, 68, 0.08)"
+            }
+        ].filter(item => item.text); // Only show if AI provided text
+
+        if (insightItems.length === 0) return null;
+
+        return (
+            <View style={styles.insightsSection}>
+                <View style={styles.insightsHeader}>
+                    <MaterialCommunityIcons name="map-marker-star-outline" size={22} color={COLORS.primary} />
+                    <View>
+                        <Text style={styles.sectionTitle}>Local Insights</Text>
+                        <Text style={styles.insightsSubtitle}>Exclusive AI tips for {plan.destination}</Text>
+                    </View>
+                </View>
+                
+                <View style={styles.insightsContainer}>
+                    {insightItems.map((item, index) => (
+                        <View key={index} style={styles.insightCard}>
+                            <View style={[styles.insightIconBox, { backgroundColor: item.bg }]}>
+                                <MaterialCommunityIcons name={item.icon} size={20} color={item.color} />
+                            </View>
+                            <View style={styles.insightContent}>
+                                <Text style={[styles.insightTitle, { color: item.color }]}>{item.title}</Text>
+                                <Text style={styles.insightText}>{item.text}</Text>
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            </View>
+        );
+    };
+
     // ========= Packing List =========
     const renderPackingList = () => {
         if (!packingList.length) return null;
@@ -540,6 +598,7 @@ const TripPlanDetailScreen = ({ route, navigation }) => {
                     {renderDaySelector()}
                     {renderDayView()}
                     {renderBudget()}
+                    {renderLocalInsights()}
                     {renderTips()}
                     {renderPackingList()}
 
@@ -710,6 +769,17 @@ const styles = StyleSheet.create({
     tipNumber: { width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.warning + "15", alignItems: "center", justifyContent: "center" },
     tipNumberText: { fontSize: 12, fontWeight: "800", color: COLORS.warning },
     tipText: { fontSize: 13, lineHeight: 20, color: COLORS.textMedium, flex: 1 },
+
+    // Local Insights
+    insightsSection: { paddingHorizontal: 20, marginTop: 25 },
+    insightsHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
+    insightsSubtitle: { fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+    insightsContainer: { backgroundColor: COLORS.cardBg, borderRadius: 16, padding: 16,     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+    insightCard: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 16 },
+    insightIconBox: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 2 },
+    insightContent: { flex: 1, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", paddingBottom: 16 },
+    insightTitle: { fontSize: 14, fontWeight: "700", marginBottom: 4 },
+    insightText: { fontSize: 13, lineHeight: 20, color: COLORS.textMedium },
 
     // Packing
     packingSection: { paddingHorizontal: 20, marginTop: 25 },

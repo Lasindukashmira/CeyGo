@@ -172,13 +172,12 @@ export const getNearbyHotels = async (placeName, district = 'Sri Lanka', forceRe
 
         const hotels = await parseGoogleHotelResults(data);
 
-        // Only cache if we got results and limit to 6 nearby hotels
-        const nearbyHotels = hotels.slice(0, 6);
-        if (nearbyHotels.length > 0) {
-            await setCachedData(NEARBY_CACHE_KEY, nearbyHotels);
+        // Only cache if we got results
+        if (hotels.length > 0) {
+            await setCachedData(NEARBY_CACHE_KEY, hotels);
         }
 
-        return nearbyHotels.length > 0 ? nearbyHotels : getFallbackNearbyHotels();
+        return hotels.length > 0 ? hotels : getFallbackNearbyHotels();
     } catch (error) {
         console.error('Error fetching nearby hotels:', error.message);
         return getFallbackNearbyHotels();
@@ -324,7 +323,7 @@ const parseGoogleHotelResults = async (data) => {
 
     console.log(`Parsing ${properties.length} Google Hotel results`);
 
-    return properties.slice(0, 10).map((item, index) => {
+    return properties.map((item, index) => {
         // Extract price - Google Hotels provides rate_per_night.extracted_lowest
         let price = null;
         if (item.rate_per_night?.extracted_lowest) {
@@ -374,7 +373,7 @@ const parseGoogleMapsResults = (data) => {
 
     console.log(`Parsing ${results.length} Google Maps restaurant results`);
 
-    return results.slice(0, 10).map((item, index) => {
+    return results.map((item, index) => {
         // Extract price level ($-$$$$)
         let price = 15; // Default USD level
         if (item.price) {
@@ -577,6 +576,28 @@ const getFallbackHotels = () => [
         amenities: ['wifi', 'pool', 'beach', 'spa'],
         type: 'Hotel',
     },
+    {
+        id: 'fallback_h6',
+        name: 'Backpackers Hostel Kandy',
+        location: 'Kandy, Central Province',
+        price: 15,
+        rating: 4.2,
+        image: 'https://images.unsplash.com/photo-1555854817-5b2260d1bd63?w=400',
+        tags: ['Budget', 'Hostel'],
+        amenities: ['wifi', 'coffee'],
+        type: 'Hotel',
+    },
+    {
+        id: 'fallback_h7',
+        name: 'Green View Guest House',
+        location: 'Ella, Uva Province',
+        price: 25,
+        rating: 4.4,
+        image: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=400',
+        tags: ['Budget', 'Guesthouse'],
+        amenities: ['wifi', 'mountain-view'],
+        type: 'Hotel',
+    },
 ];
 
 const getFallbackNearbyHotels = () => [
@@ -611,6 +632,28 @@ const getFallbackNearbyHotels = () => [
         image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400',
         tags: ['Eco-Friendly'],
         amenities: ['wifi', 'nature', 'spa'],
+        type: 'Hotel',
+    },
+    {
+        id: 'nearby_fallback_4',
+        name: 'City Budget Inn',
+        location: 'Sri Lanka',
+        price: 20,
+        rating: 4.1,
+        image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=400',
+        tags: ['Economy', 'Hostel'],
+        amenities: ['wifi'],
+        type: 'Hotel',
+    },
+    {
+        id: 'nearby_fallback_5',
+        name: 'Simple Stays Guesthouse',
+        location: 'Sri Lanka',
+        price: 18,
+        rating: 4.0,
+        image: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=400',
+        tags: ['Budget'],
+        amenities: ['wifi'],
         type: 'Hotel',
     },
 ];
@@ -675,6 +718,30 @@ const getFallbackRestaurants = () => [
         amenities: ['silverware-fork-knife', 'glass-cocktail', 'spa'],
         type: 'Restaurant',
         cuisine: ['Sri Lankan', 'International'],
+    },
+    {
+        id: 'fallback_r6',
+        name: 'Local Rice & Curry Hub',
+        location: 'Sri Lanka',
+        price: 650,
+        rating: 4.8,
+        image: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=400',
+        tags: ['Local', 'Authentic'],
+        amenities: ['silverware-fork-knife'],
+        type: 'Restaurant',
+        cuisine: ['Sri Lankan'],
+    },
+    {
+        id: 'fallback_r7',
+        name: 'Street Food Corner',
+        location: 'Sri Lanka',
+        price: 400,
+        rating: 4.5,
+        image: 'https://images.unsplash.com/photo-1599481238640-4c1288750d7a?w=400',
+        tags: ['Street Food', 'Quick'],
+        amenities: ['silverware-fork-knife'],
+        type: 'Restaurant',
+        cuisine: ['Sri Lankan', 'Fast Food'],
     },
 ];
 

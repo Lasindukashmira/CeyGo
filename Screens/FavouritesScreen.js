@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from '@react-navigation/native';
-import { getAuth } from 'firebase/auth';
+import { useAuth } from "../AuthContext";
 import { getUserFavorites, togglePlaceFavorite } from '../Services/PlacesService';
 
 const { width } = Dimensions.get("window");
@@ -25,8 +25,7 @@ const FavouritesScreen = ({ navigation }) => {
   const [favourites, setFavourites] = useState([]); // Real Data
   const [loading, setLoading] = useState(true);
 
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const { user } = useAuth();
 
   const tabs = ["All", "Places", "Hotels", "Tours"];
 

@@ -26,7 +26,7 @@ const RestaurantDetailsScreen = ({ route, navigation }) => {
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `Check out ${restaurant.name} on CeyGo!\n\nLocation: ${restaurant.location}\nRating: ${restaurant.rating} ⭐\nCuisine: ${restaurant.cuisine?.join(", ") || "Various"}`,
+                message: `Check out ${restaurant.name} on CeyGo!\n\nLocation: ${restaurant.location?.address || restaurant.location}\nRating: ${restaurant.rating} ⭐\nCuisine: ${restaurant.cuisine?.join(", ") || "Various"}`,
                 title: restaurant.name,
             });
         } catch (error) {
@@ -52,7 +52,7 @@ const RestaurantDetailsScreen = ({ route, navigation }) => {
 
     const handleOpenMap = async () => {
         const webUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-            restaurant.name + " " + restaurant.location
+            restaurant.name + " " + (restaurant.location?.address || restaurant.location)
         )}`;
         await Linking.openURL(webUrl);
     };
@@ -126,7 +126,7 @@ const RestaurantDetailsScreen = ({ route, navigation }) => {
                         <Text style={styles.heroTitle}>{restaurant.name}</Text>
                         <View style={styles.heroLocation}>
                             <MaterialIcons name="location-on" size={16} color="rgba(255,255,255,0.9)" />
-                            <Text style={styles.heroLocationText}>{restaurant.location}</Text>
+                            <Text style={styles.heroLocationText}>{restaurant.location?.address || restaurant.location}</Text>
                         </View>
                     </View>
                 </View>
@@ -209,7 +209,7 @@ const RestaurantDetailsScreen = ({ route, navigation }) => {
                         <View style={styles.aboutCard}>
                             <Text style={styles.aboutText}>
                                 {restaurant.description ||
-                                    `Discover culinary excellence at ${restaurant.name}. Located in ${restaurant.location}, we offer an unforgettable dining experience with carefully crafted dishes, exceptional service, and a warm ambiance. Perfect for intimate dinners, family gatherings, or special celebrations.`}
+                                    `Discover culinary excellence at ${restaurant.name}. Located in ${restaurant.location?.address || restaurant.location}, we offer an unforgettable dining experience with carefully crafted dishes, exceptional service, and a warm ambiance. Perfect for intimate dinners, family gatherings, or special celebrations.`}
                             </Text>
                         </View>
                     </View>
@@ -288,7 +288,7 @@ const RestaurantDetailsScreen = ({ route, navigation }) => {
                         </View>
                         <TouchableOpacity style={styles.locationCard} onPress={handleOpenMap}>
                             <View style={styles.locationInfo}>
-                                <Text style={styles.locationAddress}>{restaurant.location}</Text>
+                                <Text style={styles.locationAddress}>{restaurant.location?.address || restaurant.location}</Text>
                                 <Text style={styles.locationHint}>Tap to view on map</Text>
                             </View>
                             <View style={styles.locationMapIcon}>

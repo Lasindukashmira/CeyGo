@@ -66,13 +66,36 @@ const fetchPlacesByDistrict = async (district) => {
 // ==========================================
 // 2. Fetch Hotels
 // ==========================================
-const fetchHotelsForDistrict = async (district) => {
+const fetchHotelsForDistrict = async (district, budgetTier) => {
     try {
-        console.log(`[TripPlanner] Fetching hotels for ${district}...`);
-        const hotels = await getNearbyHotels(district, "Sri Lanka", false);
+        console.log(`[TripPlanner] Fetching hotels for ${district} (Budget: ${budgetTier})...`);
+        const allHotels = await getNearbyHotels(district, "Sri Lanka", false);
+
+        // Pre-filter hotels based on budget tier
+        let filteredHotels = allHotels.filter(h => {
+            const price = h.priceLKR || (h.price ? Math.round(h.price * 300) : 0);
+            if (price === 0) return true; // Keep items with missing prices just in case
+            
+            if (budgetTier === "Economy") return price <= 8000;
+            if (budgetTier === "Standard") return price >= 8000 && price <= 25000;
+            if (budgetTier === "Luxury") return price >= 20000;
+            return true;
+        });
+
+        // Fallback if filter is too strict
+        if (filteredHotels.length === 0) {
+            console.log(`[TripPlanner] Strict filter found 0 hotels. Relaxing filter.`);
+            filteredHotels = [...allHotels].sort((a, b) => {
+               const pA = a.priceLKR || (a.price ? a.price * 300 : 0);
+               const pB = b.priceLKR || (b.price ? b.price * 300 : 0);
+               if (budgetTier === "Economy") return pA - pB; // Cheapest first
+               if (budgetTier === "Luxury") return pB - pA; // Most expensive first
+               return pA - pB; // Default cheapest first
+            });
+        }
 
         // Take top 10, simplify for AI
-        return hotels.slice(0, 10).map(h => ({
+        return filteredHotels.slice(0, 10).map(h => ({
             name: h.name,
             rating: h.rating || 0,
             priceLKR: h.priceLKR || (h.price ? Math.round(h.price * 300) : 0),
@@ -87,13 +110,34 @@ const fetchHotelsForDistrict = async (district) => {
 // ==========================================
 // 3. Fetch Restaurants
 // ==========================================
-const fetchRestaurantsForDistrict = async (district) => {
+const fetchRestaurantsForDistrict = async (district, budgetTier) => {
     try {
-        console.log(`[TripPlanner] Fetching restaurants for ${district}...`);
-        const restaurants = await getTopRestaurants(district, false);
+        console.log(`[TripPlanner] Fetching restaurants for ${district} (Budget: ${budgetTier})...`);
+        const allRestaurants = await getTopRestaurants(district, false);
+
+        // Filter restaurants by budget tier
+        let filteredRestaurants = allRestaurants.filter(r => {
+            const price = r.priceLKR || (r.price ? Math.round(r.price * 300) : 0);
+            if (price === 0) return true;
+
+            if (budgetTier === "Economy") return price <= 2500;
+            if (budgetTier === "Luxury") return price >= 4000;
+            return true;
+        });
+
+        // Fallback or sort if needed
+        if (filteredRestaurants.length === 0) {
+            filteredRestaurants = [...allRestaurants].sort((a, b) => {
+                const pA = a.priceLKR || (a.price ? a.price * 300 : 0);
+                const pB = b.priceLKR || (b.price ? b.price * 300 : 0);
+                if (budgetTier === "Economy") return pA - pB;
+                if (budgetTier === "Luxury") return pB - pA;
+                return 0;
+            });
+        }
 
         // Take top 10, simplify for AI
-        return restaurants.slice(0, 10).map(r => ({
+        return filteredRestaurants.slice(0, 10).map(r => ({
             name: r.name,
             rating: r.rating || 0,
             cuisine: r.type || r.cuisine || "Sri Lankan",
@@ -111,6 +155,12 @@ const fetchRestaurantsForDistrict = async (district) => {
 const buildPrompt = (tripData, places, hotels, restaurants) => {
     const destination = tripData.isSurprise ? "a surprise destination in Sri Lanka" : tripData.destination;
 
+    // Estimate numeric traveler count to force accurate budget math
+    let travelerCount = 2; // default
+    if (tripData.travelers === "Solo") travelerCount = 1;
+    if (tripData.travelers === "Family") travelerCount = 4;
+    if (tripData.travelers === "Friends") travelerCount = 4;
+
     return `You are an expert Sri Lankan travel planner. Create a detailed ${tripData.duration}-day trip itinerary for ${destination}, Sri Lanka.
 
 TRIP DETAILS:
@@ -118,31 +168,32 @@ TRIP DETAILS:
 - Duration: ${tripData.duration} days
 - Start Date: ${tripData.startDate}
 - End Date: ${tripData.endDate}
-- Travelers: ${tripData.travelers}
+- Travelers: ${tripData.travelers} (Treat this as approximately ${travelerCount} people)
 - Budget Tier: ${tripData.budget} (Economy = budget-friendly, Standard = mid-range, Luxury = high-end)
 - Interests: ${tripData.interests.length > 0 ? tripData.interests.join(", ") : "General sightseeing"}
 
 AVAILABLE PLACES & ATTRACTIONS:
 ${places.length > 0 ? places.map(a => `- ${a.name} (Rating: ${a.rating}/5, Category: ${a.category.join(", ")}, Entry: Rs.${a.entryFeeLKR})`).join("\n") : "- Use your knowledge of popular places in this area"}
 
-AVAILABLE HOTELS & RESORTS:
+AVAILABLE HOTELS & RESORTS (Pre-filtered for ${tripData.budget} budget):
 ${hotels.length > 0 ? hotels.map(h => `- ${h.name} (Rating: ${h.rating}/5, Rs.${h.priceLKR}/night)`).join("\n") : "- Suggest appropriate hotels for the budget tier"}
 
 AVAILABLE RESTAURANTS:
 ${restaurants.length > 0 ? restaurants.map(r => `- ${r.name} (Rating: ${r.rating}/5, Cuisine: ${r.cuisine}, Avg: Rs.${r.avgPriceLKR}/person)`).join("\n") : "- Suggest appropriate restaurants for the area"}
 
-CRITICAL INSTRUCTIONS:
+CRITICAL INSTRUCTIONS (MUST OBEY):
 1. ALL prices MUST be in Sri Lankan Rupees (LKR / Rs.)
-2. Use the REAL places, hotels, and restaurants listed above when available
-3. Each day must have morning, afternoon, and evening activities
-4. Include meal recommendations (breakfast, lunch, dinner) from the restaurants listed
-5. For hotels: suggest 3 different hotel options from the list above (budget, mid-range, premium) so the user can choose. Pick one as the "recommended" option matching their budget tier
-6. Estimate costs in LKR for everything
-7. Budget breakdown must be in LKR
-8. Make the plan realistic with proper time management
-9. For "${tripData.budget}" budget: ${tripData.budget === "Economy" ? "focus on affordable options, street food, budget stays under Rs.5,000/night" : tripData.budget === "Luxury" ? "focus on premium experiences, fine dining, luxury hotels Rs.25,000+/night" : "balance comfort and value, hotels Rs.8,000-20,000/night"}
+2. Use the REAL places, hotels, and restaurants listed above when available.
+3. BUDGET CONSTRAINTS FOR "${tripData.budget}":
+   - ${tripData.budget === "Economy" ? "CRITICAL: This is an Economy trip. Total daily cost MUST BE MINIMAL. Focus on street food, local eateries (Rs. 500-1500 per meal), and budget stays (Rs. 2000-6000 per night). Avoid any luxury items." : tripData.budget === "Luxury" ? "CRITICAL: This is a Luxury trip. Focus on high-end resorts (Rs. 30,000+ per night), fine dining, and premium private transport." : "Balance comfort and value. Stays should be Rs. 8,000-20,000 per night."}
+4. BUGET CALCULATION MATTERS: You must multiply the costs by the number of travelers (${travelerCount} people) and the duration (${tripData.duration} days) for the total budget! 
+   - Wait! Hotel rates are PER NIGHT, PER ROOM. Assume 1 room per 2 people. So ${travelerCount} people = ${Math.ceil(travelerCount/2)} rooms. Multiply hotel nightly rate by ${Math.ceil(travelerCount/2)} rooms and then by ${tripData.duration} nights for total accommodation.
+   - Food costs must be multiplied by ${travelerCount} people per meal.
+5. Each day must have morning, afternoon, and evening activities.
+6. For hotels: suggest 3 different hotel options from the list above (if available). Pick one as the "recommended" option matching their budget tier.
+7. Provide "localInsights" - this includes a Hidden Gem, a Cultural Norm, and a Tourist Scam Warning specific to ${destination}.
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON in this exact format without markdown blocks:
 {
   "tripTitle": "A catchy title for the trip",
   "summary": "A 2-3 sentence summary of what this trip offers",
@@ -150,6 +201,11 @@ Return ONLY valid JSON in this exact format:
   "duration": ${tripData.duration},
   "travelers": "${tripData.travelers}",
   "budgetTier": "${tripData.budget}",
+  "localInsights": {
+    "hiddenGem": "A lesser-known beautiful spot nearby",
+    "culturalNorm": "A local custom or dress code rule to respect",
+    "scamWarning": "A common tourist trap to avoid in this specific area"
+  },
   "hotelOptions": [
     { "name": "Budget Hotel Name", "priceLKR": 0, "rating": 0, "tier": "Budget", "recommended": false },
     { "name": "Mid-range Hotel Name", "priceLKR": 0, "rating": 0, "tier": "Standard", "recommended": true },
@@ -219,8 +275,8 @@ export const generateTripPlan = async (tripData) => {
     // Fetch all data in parallel — ONE batch of fetches
     const [places, hotels, restaurants] = await Promise.all([
         fetchPlacesByDistrict(destination),
-        fetchHotelsForDistrict(destination),
-        fetchRestaurantsForDistrict(destination),
+        fetchHotelsForDistrict(destination, tripData.budget),
+        fetchRestaurantsForDistrict(destination, tripData.budget),
     ]);
 
     console.log(`[TripPlanner] Data collected: ${places.length} places, ${hotels.length} hotels, ${restaurants.length} restaurants`);

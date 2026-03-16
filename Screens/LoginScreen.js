@@ -9,13 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useAuth } from "../AuthContext";
+import { Modal } from "react-native";
+import { useAuth, useGoogleAuth } from "../AuthContext";
 import { AntDesign } from "@expo/vector-icons";
 import LoadingScreen from "../Components/LoadingScreen";
-import { Modal } from "react-native";
+
 
 const LoginScreen = ({ navigation }) => {
-  const { login } = useAuth(); // ✅ get login function from AuthContext
+  const { login } = useAuth();
+  const { promptGoogleSignIn, request, googleLoading, googleError } = useGoogleAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -38,14 +41,16 @@ const LoginScreen = ({ navigation }) => {
       }
 
       setIsLoggingIn(true);
-      await login(email, password); // ✅ login via AuthContext
-      // Success? The AuthContext listener will redirect us.
-      // We can keep loading true until unmount or let nature take its course.
+      await login(email, password);
     } catch (err) {
       setError(err.message);
       setIsLoggingIn(false);
     }
   };
+
+  // Combine email login loading + Google loading for the loading modal
+  const showLoading = isLoggingIn || googleLoading;
+  const displayError = error || googleError;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -63,8 +68,8 @@ const LoginScreen = ({ navigation }) => {
 
           {/* Login Form */}
           <View style={styles.form}>
-            {error ? (
-              <Text style={{ color: "red", marginBottom: 10 }}>{error}</Text>
+            {displayError ? (
+              <Text style={{ color: "red", marginBottom: 10 }}>{displayError}</Text>
             ) : null}
 
             <View style={styles.inputContainer}>
@@ -105,13 +110,17 @@ const LoginScreen = ({ navigation }) => {
             <View style={styles.socialLoginContainer}>
               <Text style={styles.orText}>OR</Text>
 
-              <TouchableOpacity style={styles.socialButton}>
+              <TouchableOpacity
+                style={[styles.socialButton, !request && styles.socialButtonDisabled]}
+                onPress={promptGoogleSignIn}
+                disabled={!request}
+              >
                 <AntDesign name="google" size={20} color="#DB4437" style={styles.socialIcon} />
                 <Text style={styles.socialButtonText}>Continue with Google</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.socialButton}>
-                <AntDesign name="facebook-square" size={20} color="#4267B2" style={styles.socialIcon} />
+                <AntDesign name="facebook" size={20} color="#4267B2" style={styles.socialIcon} />
                 <Text style={styles.socialButtonText}>Continue with Facebook</Text>
               </TouchableOpacity>
             </View>
@@ -127,7 +136,7 @@ const LoginScreen = ({ navigation }) => {
         </View>
       </KeyboardAvoidingView>
 
-      <Modal visible={isLoggingIn} transparent={false} animationType="fade">
+      <Modal visible={showLoading} transparent={false} animationType="fade">
         <LoadingScreen message="Logging you in..." />
       </Modal>
     </SafeAreaView>
@@ -189,8 +198,8 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     borderRadius: 12,
     paddingVertical: 14,
-    flexDirection: "row", // Align icon and text row
-    justifyContent: "center", // Center content
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
     shadowColor: "#000",
@@ -198,6 +207,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+  },
+  socialButtonDisabled: {
+    opacity: 0.5,
   },
   socialIcon: {
     marginRight: 10,

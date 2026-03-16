@@ -10,10 +10,11 @@ const CACHE_KEY = 'cached_top_places';
 const CACHE_EXPIRY_KEY = 'cached_top_places_expiry';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-export const getTopPlaces = async (forceRefresh = false) => {
-    // 1. Check Cache
+export const getTopPlaces = async (userPreferences = [], forceRefresh = false) => {
+    // 1. Check Cache (Only for global top places, not personalized)
+    const hasPrefs = userPreferences && userPreferences.length > 0;
     try {
-        if (!forceRefresh) {
+        if (!forceRefresh && !hasPrefs) {
             const cachedData = await AsyncStorage.getItem(CACHE_KEY);
             const expiry = await AsyncStorage.getItem(CACHE_EXPIRY_KEY);
 
@@ -28,15 +29,53 @@ export const getTopPlaces = async (forceRefresh = false) => {
 
     // 2. Fetch from Firestore
     try {
-        console.log('Fetching top places from Firestore...');
+        console.log('Fetching top places from Firestore...', hasPrefs ? `with prefs: ${userPreferences}` : 'global');
         const placesRef = collection(db, 'places');
-        const q = query(placesRef, orderBy('avgRating', 'desc'), limit(10));
-        const querySnapshot = await getDocs(q);
+        let places = [];
 
-        const places = [];
-        querySnapshot.forEach((doc) => {
-            places.push({ id: doc.id, ...doc.data() });
-        });
+        if (hasPrefs) {
+            try {
+                // Priority 1: Match user preferences
+                const prefQuery = query(
+                    placesRef, 
+                    where('category', 'array-contains-any', userPreferences),
+                    orderBy('avgRating', 'desc'),
+                    limit(10)
+                );
+                const prefSnapshot = await getDocs(prefQuery);
+                prefSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.name && !data.name.toLowerCase().includes('ar test')) {
+                        places.push({ id: doc.id, ...data });
+                    }
+                });
+            } catch (prefError) {
+                // Gracefully fallback if index is missing or query fails
+                if (prefError.message.includes("index") || prefError.code === 'failed-precondition') {
+                    console.warn('[PlacesService] Missing index for personalized top places. Falling back to global.', prefError.message);
+                } else {
+                    console.error('[PlacesService] Error fetching personalized top places:', prefError);
+                }
+            }
+        }
+
+        // Priority 2: Fill remaining slots with global top rated if needed or if no prefs
+        if (places.length < 10) {
+            const needed = 10 - places.length;
+            const globalQuery = query(placesRef, orderBy('avgRating', 'desc'), limit(20)); // Fetch extra to account for duplicates/AR tests
+            const globalSnapshot = await getDocs(globalQuery);
+            
+            const existingIds = new Set(places.map(p => p.id));
+            
+            globalSnapshot.forEach((doc) => {
+                if (places.length >= 10) return;
+                
+                const data = doc.data();
+                if (data.name && !data.name.toLowerCase().includes('ar test') && !existingIds.has(doc.id)) {
+                    places.push({ id: doc.id, ...data });
+                }
+            });
+        }
 
         // 3. Save to Cache (if we got data)
         if (places.length > 0) {
@@ -439,10 +478,13 @@ export const getPagedPlaces = async (lastDoc = null, limitCount = 10, searchTerm
         const q = query(collection(db, "places"), ...constraints);
         const snapshot = await getDocs(q);
 
-        const places = snapshot.docs.map(doc => ({
+        const rawPlaces = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
+
+        // Client-side filter to hide AR Test walls to avoid Firebase composite index requirements
+        const places = rawPlaces.filter(place => !place.name || !place.name.toLowerCase().includes('ar test'));
 
         return {
             places,
